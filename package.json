@@ -3,6 +3,21 @@
   "version": "1.0.0",
   "description": "API for detecting spam and dusting attacks on Solana blockchain",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/harpal88/solana-spam-detector.git"
+  },
+  "homepage": "https://github.com/harpal88/solana-spam-detector",
+  "author": "harpal88",
+  "license": "MIT",
+  "keywords": [
+    "solana",
+    "blockchain",
+    "spam-detection",
+    "dusting-attacks",
+    "crypto",
+    "api"
+  ],
   "scripts": {
     "start": "node api-server.js",
     "dev": "nodemon api-server.js",

@@ -24,7 +24,7 @@ A RESTful API for detecting spam and dusting attacks on the Solana blockchain.
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/solana-spam-detector.git
+   git clone https://github.com/harpal88/solana-spam-detector.git
    cd solana-spam-detector
    ```
 
