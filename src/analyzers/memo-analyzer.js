@@ -8,7 +8,7 @@
 const {
   makeApiRequest,
   makePublicRpcRequest
-} = require('./api-helpers');
+} = require('../api/api-helpers');
 
 /**
  * List of suspicious terms commonly found in scam memos
@@ -44,7 +44,7 @@ function analyzeMemoText(memoText) {
 
   // Check for URLs in the memo
   const containsUrl = URL_REGEX.test(memoText);
-  
+
   // Reset regex lastIndex to find all URLs
   URL_REGEX.lastIndex = 0;
   const urls = [];
@@ -99,7 +99,7 @@ async function analyzeMemo(signature) {
       const response = await makeApiRequest('/v0/transactions', 'POST', {
         transactions: [signature]
       });
-      
+
       if (response && Array.isArray(response) && response.length > 0) {
         tx = response[0];
       }
@@ -114,7 +114,7 @@ async function analyzeMemo(signature) {
           signature,
           { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }
         ]);
-        
+
         if (txResponse && txResponse.result) {
           tx = txResponse.result;
         }
@@ -130,7 +130,7 @@ async function analyzeMemo(signature) {
 
     // Extract memo instructions
     const memoResults = [];
-    
+
     // Handle Helius parsed format
     if (tx.instructions) {
       for (const instruction of tx.instructions) {
@@ -160,7 +160,7 @@ async function analyzeMemo(signature) {
         }
       }
     }
-    
+
     // Handle RPC format if needed
     else if (tx.transaction && tx.transaction.message && tx.transaction.message.instructions) {
       for (const instruction of tx.transaction.message.instructions) {
@@ -168,7 +168,7 @@ async function analyzeMemo(signature) {
         const programId = tx.transaction.message.accountKeys[instruction.programIndex];
         if (programId === 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr' ||
             programId === 'Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo') {
-          
+
           // Extract the memo text
           let memoText = '';
           if (instruction.data) {
@@ -215,35 +215,35 @@ async function analyzeMemo(signature) {
 
     // Print analysis results
     console.log(`Transaction: ${signature}`);
-    
+
     if (memoResults.length === 0) {
       console.log('No memo instructions found in this transaction');
     } else {
       console.log(`Found ${memoResults.length} memo instruction(s)`);
-      
+
       memoResults.forEach((result, index) => {
         console.log(`\nMemo #${index + 1}:`);
         console.log(`Content: "${result.memoText}"`);
         console.log(`Suspicious: ${result.isSuspicious ? 'YES' : 'NO'}`);
-        
+
         if (result.isSuspicious) {
           console.log(`Suspicious Score: ${result.suspiciousScore}`);
-          
+
           if (result.containsUrl) {
             console.log(`Contains URLs: ${result.urls.join(', ')}`);
           }
-          
+
           if (result.foundTerms.length > 0) {
             console.log(`Suspicious Terms: ${result.foundTerms.join(', ')}`);
           }
-          
+
           console.log(`Reason: ${result.reason}`);
         }
       });
 
       if (hasSuspiciousMemo) {
         console.log(`\nOverall Risk Level: ${overallRiskLevel} (Score: ${overallRiskScore})`);
-        
+
         console.log('\n⚠️ Recommendations:');
         console.log('1. Never click on links in transaction memos');
         console.log('2. Ignore promotional messages in transaction memos');
@@ -314,30 +314,30 @@ function analyzeMemoList(memoTexts) {
     console.log('No memos provided for analysis');
   } else {
     console.log(`Analyzed ${memoResults.length} memo(s)`);
-    
+
     memoResults.forEach((result, index) => {
       console.log(`\nMemo #${index + 1}:`);
       console.log(`Content: "${result.memoText}"`);
       console.log(`Suspicious: ${result.isSuspicious ? 'YES' : 'NO'}`);
-      
+
       if (result.isSuspicious) {
         console.log(`Suspicious Score: ${result.suspiciousScore}`);
-        
+
         if (result.containsUrl) {
           console.log(`Contains URLs: ${result.urls.join(', ')}`);
         }
-        
+
         if (result.foundTerms.length > 0) {
           console.log(`Suspicious Terms: ${result.foundTerms.join(', ')}`);
         }
-        
+
         console.log(`Reason: ${result.reason}`);
       }
     });
 
     if (hasSuspiciousMemo) {
       console.log(`\nOverall Risk Level: ${overallRiskLevel} (Score: ${overallRiskScore})`);
-      
+
       console.log('\n⚠️ Recommendations:');
       console.log('1. Never click on links in transaction memos');
       console.log('2. Ignore promotional messages in transaction memos');

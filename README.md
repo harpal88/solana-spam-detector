@@ -1,111 +1,133 @@
-# Solana Spam Detector API
+# Solana Spam Detector
 
-A RESTful API for detecting spam and dusting attacks on the Solana blockchain.
+API for detecting spam and dusting attacks on the Solana blockchain.
 
-## Features
+## Project Structure
 
-- **Wallet Analysis**: Analyze a wallet address for potential dusting attacks
-- **Transaction Analysis**: Analyze a specific transaction for dusting attack indicators
-- **Block Range Analysis**: Analyze transactions within a specific block range
-- **Token Analysis**: Analyze transactions involving a specific token mint address
-- **Batch Wallet Analysis**: Analyze multiple wallet addresses in a single request
-- **Time-Based Analysis**: Analyze transactions within a specific time range
-- **Wallet Tokens Analysis**: Analyze tokens in a wallet for suspicious indicators
-- **Memo Analysis**: Analyze transaction memos for suspicious content
-- **Memo Batch Analysis**: Analyze multiple memo texts for suspicious content
-
-## Prerequisites
-
-- Node.js (v14 or higher)
-- npm or yarn
-- Helius API key (for Solana blockchain data)
+```
+solana-spam-detector/
+├── config/                  # Configuration files
+│   ├── config.js            # Main configuration
+│   └── config.example.js    # Example configuration
+├── data/                    # Data storage
+│   ├── example-transactions.json  # Example transactions for testing
+│   └── wallets.txt          # Sample wallet list for batch analysis
+├── docs/                    # Documentation
+│   ├── API_DOCUMENTATION.md # API documentation
+│   ├── CLI_COMMANDS.md      # CLI commands documentation
+│   └── README.md            # Original README
+├── public/                  # Frontend assets
+│   └── dashboard/           # Dashboard frontend
+│       ├── assets/          # Images, icons, etc.
+│       ├── components/      # Reusable UI components
+│       ├── css/             # Stylesheets
+│       │   └── styles.css   # Main stylesheet
+│       ├── js/              # JavaScript files
+│       │   └── dashboard.js # Main dashboard script
+│       └── index.html       # Dashboard HTML
+├── src/                     # Source code
+│   ├── analyzers/           # Analysis modules
+│   │   ├── batch-analyzer.js    # Batch wallet analysis
+│   │   ├── block-analyzer.js    # Block range analysis
+│   │   ├── memo-analyzer.js     # Memo analysis
+│   │   ├── time-analyzer.js     # Time-based analysis
+│   │   ├── token-analyzer.js    # Token analysis
+│   │   ├── transaction-analyzer.js # Transaction analysis
+│   │   └── wallet-analyzer.js   # Wallet analysis
+│   ├── api/                 # API endpoints
+│   │   ├── api-helpers.js   # API helper functions
+│   │   ├── api-server.js    # Main API server
+│   │   └── dashboard-api.js # Dashboard API endpoints
+│   ├── dashboard/           # Dashboard backend
+│   │   └── dashboard-data-collector.js # Data collection for dashboard
+│   └── utils/               # Utility functions
+│       ├── get-token-price.js    # Token price fetching
+│       ├── token-price-fetcher.js # Token price fetching utilities
+│       └── token-whitelist.js    # Token whitelist
+├── examples.js              # Example script for testing
+├── index.js                 # CLI entry point
+└── server.js                # API server entry point
+```
 
 ## Installation
 
 1. Clone the repository:
-   ```
-   git clone https://github.com/harpal88/solana-spam-detector.git
-   cd solana-spam-detector
-   ```
+```bash
+git clone https://github.com/harpal88/solana-spam-detector.git
+cd solana-spam-detector
+```
 
 2. Install dependencies:
-   ```
-   npm install
-   ```
+```bash
+npm install
+```
 
-3. Create a `config.js` file with your Helius API key:
-   ```javascript
-   module.exports = {
-     HELIUS_API_KEY: 'your-helius-api-key'
-   };
-   ```
+3. Create a configuration file:
+```bash
+cp config/config.example.js config/config.js
+```
+
+4. Edit the configuration file with your Helius API key.
 
 ## Usage
 
+### CLI Commands
+
+The Solana Spam Detector can be used as a command-line tool with various commands:
+
+```bash
+node index.js wallet vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg 20
+```
+
+For a complete list of CLI commands and examples, see [CLI Commands Documentation](docs/CLI_COMMANDS.md).
+
+### Example Transactions
+
+You can run example transactions using the examples.js script:
+
+```bash
+node examples.js tx     # Run transaction examples
+node examples.js wallet # Run wallet examples
+node examples.js token  # Run token examples
+node examples.js all    # Run one example of each type
+```
+
 ### Starting the API Server
 
-```
+```bash
 npm start
 ```
 
-The server will start on port 3000 by default. You can change this by setting the `PORT` environment variable.
+For development with auto-restart:
+```bash
+npm run dev
+```
+
+### Accessing the Dashboard
+
+Open your browser and navigate to:
+```
+http://localhost:3000/dashboard
+```
 
 ### API Documentation
 
-Once the server is running, you can access the Swagger API documentation at:
-
+API documentation is available at:
 ```
 http://localhost:3000/api-docs
 ```
 
-For detailed API documentation, see [API_DOCUMENTATION.md](API_DOCUMENTATION.md).
+## Features
 
-### Example API Requests
-
-#### Wallet Analysis
-
-```bash
-curl -X POST http://localhost:3000/v1/api/wallet \
-  -H "Content-Type: application/json" \
-  -d '{"walletAddress": "vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg", "numTransactions": 20}'
-```
-
-#### Transaction Analysis
-
-```bash
-curl -X POST http://localhost:3000/v1/api/transaction \
-  -H "Content-Type: application/json" \
-  -d '{"signature": "4jzQxVTaJ4Fe4Fct9y1aaT9hmVyEjpCqE2bL8JMnuLZbzHZwaL4kZZvNEZ6bEj6fGmiAdCPjmNQHCf8v994PAgDf"}'
-```
-
-#### Memo Analysis
-
-```bash
-curl -X POST http://localhost:3000/v1/api/memo \
-  -H "Content-Type: application/json" \
-  -d '{"signature": "4jzQxVTaJ4Fe4Fct9y1aaT9hmVyEjpCqE2bL8JMnuLZbzHZwaL4kZZvNEZ6bEj6fGmiAdCPjmNQHCf8v994PAgDf"}'
-```
-
-## Development
-
-For development with auto-restart on file changes:
-
-```
-npm run dev
-```
-
-## Security Considerations
-
-- The API implements rate limiting to prevent abuse
-- Consider adding authentication for production use
-- Keep your Helius API key secure
+- Wallet address analysis for dusting attacks
+- Transaction signature analysis
+- Block range scanning
+- Token mint address analysis
+- Batch wallet analysis
+- Time-based analysis
+- Memo analysis for scam detection
+- Interactive dashboard for visualization
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- [Helius](https://helius.xyz/) for providing Solana blockchain data
-- [Express](https://expressjs.com/) for the web framework
-- [Swagger](https://swagger.io/) for API documentation
+MIT

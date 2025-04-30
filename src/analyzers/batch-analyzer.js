@@ -1,11 +1,11 @@
 /**
  * Batch Analyzer for Solana Dusting Attack Detector
- * 
+ *
  * This module provides functions for analyzing multiple Solana wallets
  * to detect potential dusting attacks.
  */
 
-const { getTransactionSignatures } = require('./api-helpers');
+const { getTransactionSignatures } = require('../api/api-helpers');
 const { analyzeTransaction } = require('./transaction-analyzer');
 
 /**

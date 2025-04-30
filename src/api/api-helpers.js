@@ -1,6 +1,6 @@
 /**
  * API Helper Functions for Solana Dusting Attack Detector
- * 
+ *
  * This module provides helper functions for making API requests to Helius,
  * Solana public RPC, and Solana Explorer API.
  */
@@ -8,7 +8,7 @@
 // Try to load config file, use placeholder if not found
 let HELIUS_API_KEY = '';
 try {
-  const config = require('./config');
+  const config = require('../../config/config');
   HELIUS_API_KEY = config.HELIUS_API_KEY;
 } catch (error) {
   console.error('Config file not found or invalid. Please create a config.js file based on config.example.js');
@@ -25,10 +25,15 @@ const SOLANA_EXPLORER_API = 'https://explorer-api.mainnet-beta.solana.com';
  * Helper function to make JSON-RPC requests to Helius
  * @param {string} method - The RPC method to call
  * @param {Array} params - The parameters for the RPC method
+ * @param {number} timeoutMs - Timeout in milliseconds (default: 10000)
  * @returns {Promise<Object>} - The response from the RPC call
  */
-async function makeRpcRequest(method, params = []) {
+async function makeRpcRequest(method, params = [], timeoutMs = 10000) {
   try {
+    // Create an abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     const response = await fetch(HELIUS_RPC_URL, {
       method: 'POST',
       headers: {
@@ -40,12 +45,20 @@ async function makeRpcRequest(method, params = []) {
         method,
         params,
       }),
+      signal: controller.signal
     });
+
+    // Clear the timeout
+    clearTimeout(timeoutId);
 
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error(`Error making RPC request to ${method}:`, error);
+    if (error.name === 'AbortError') {
+      console.error(`RPC request to ${method} timed out after ${timeoutMs}ms`);
+    } else {
+      console.error(`Error making RPC request to ${method}:`, error);
+    }
     return null;
   }
 }

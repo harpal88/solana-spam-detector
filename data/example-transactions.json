@@ -1,0 +1,82 @@
+{
+  "transactions": [
+    {
+      "signature": "4oBFNe4qjAYPH6q5cK8C5MwPvC8jbTw2SXZsekwQE8gJPQvTRsQDj4mZQNmqT3MYaJNgDh3yJuF3GZFMmJgKFZWP",
+      "type": "SOL Transfer",
+      "description": "Regular SOL transfer between wallets",
+      "expectedResult": "Not a dusting attack"
+    },
+    {
+      "signature": "4XE9mafpH8AiTdMJXGpVQbee86HUdenbr63dDgJkKKnRZJQKCW9LPKCUNnvBdLvmLcCJvPQAHWP5DmwBLwGDSLNq",
+      "type": "Token Transfer (USDC)",
+      "description": "USDC token transfer",
+      "expectedResult": "Not a dusting attack (verified token)"
+    },
+    {
+      "signature": "5YARGvp3ufVm9Svh2ZQxEySSdrQUhY3YLLAXTTHxJvhw",
+      "type": "NFT Transfer",
+      "description": "NFT transfer between wallets",
+      "expectedResult": "Not a dusting attack"
+    },
+    {
+      "signature": "3vDU6xomZBZFCWkGKAyGVS8K4S4qZZzDDbCNyLxDrUPBzRjYzYGY4ZnmLNECVSK8gYCsY1MoFa7iFPXxXn4WQtBF",
+      "type": "Potential Dusting Attack",
+      "description": "Small amount of unverified token sent to multiple wallets",
+      "expectedResult": "Likely a dusting attack"
+    },
+    {
+      "signature": "2Hh35XeZkZEWzpzNZyVYJDgCJGCTPKyLQzF4Yiafs4vJ4BkYKJfvPQhsk9ZyQBtCKML9iJKVGHAsJT1yDDP1RzXH",
+      "type": "Transaction with Memo",
+      "description": "Transaction containing a memo field with potential scam text",
+      "expectedResult": "Suspicious memo content"
+    }
+  ],
+  "wallets": [
+    {
+      "address": "vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg",
+      "description": "Wallet with mixed transaction history",
+      "expectedResult": "Some dusting attacks detected"
+    },
+    {
+      "address": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
+      "description": "Wallet with mostly legitimate transactions",
+      "expectedResult": "Few or no dusting attacks"
+    },
+    {
+      "address": "HN7cABqLq46Es1jh92dQQisAq662SmxELLLsHHe4YWrH",
+      "description": "Wallet that has received multiple dusting attacks",
+      "expectedResult": "Multiple dusting attacks detected"
+    },
+    {
+      "address": "2qMqGzk6UPYZoq8ffgDskAQPF8Pjo9hDL3o5Y7WxkmRo",
+      "description": "Wallet that has sent dusting attacks",
+      "expectedResult": "Identified as potential attacker"
+    }
+  ],
+  "tokens": [
+    {
+      "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "USDC",
+      "description": "USD Coin - verified stablecoin",
+      "expectedResult": "Not used for dusting attacks (verified token)"
+    },
+    {
+      "mint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "symbol": "BONK",
+      "description": "Bonk - popular meme token",
+      "expectedResult": "Not typically used for dusting attacks (verified token)"
+    },
+    {
+      "mint": "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN",
+      "symbol": "TRUMP",
+      "description": "Trump token - higher value token",
+      "expectedResult": "Not typically used for dusting attacks (higher value)"
+    },
+    {
+      "mint": "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj",
+      "symbol": "RAY",
+      "description": "Raydium token - verified DeFi token",
+      "expectedResult": "Not used for dusting attacks (verified token)"
+    }
+  ]
+}

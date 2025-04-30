@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Cache file path for storing verified tokens
-const CACHE_FILE_PATH = path.join(__dirname, 'verified-tokens-cache.json');
+const CACHE_FILE_PATH = path.join(__dirname, '../../data/verified-tokens-cache.json');
 
 // Well-known stablecoins that should never be flagged as dusting attacks
 const STABLECOIN_MINTS = [
@@ -72,9 +72,9 @@ async function fetchVerifiedTokens() {
     const response = await axios.get(
       'https://raw.githubusercontent.com/solana-labs/token-list/main/src/tokens/solana.tokenlist.json'
     );
-    
+
     const verifiedTokens = {};
-    
+
     // Add all tokens from the Solana token list
     if (response.data && response.data.tokens) {
       response.data.tokens.forEach(token => {
@@ -85,7 +85,7 @@ async function fetchVerifiedTokens() {
         };
       });
     }
-    
+
     // Add well-known stablecoins if they're not already in the list
     STABLECOIN_MINTS.forEach(mint => {
       if (!verifiedTokens[mint]) {
@@ -97,12 +97,12 @@ async function fetchVerifiedTokens() {
         verifiedTokens[mint].isStablecoin = true;
       }
     });
-    
+
     console.log(`Fetched ${Object.keys(verifiedTokens).length} verified tokens`);
     return verifiedTokens;
   } catch (error) {
     console.error('Error fetching verified tokens:', error);
-    
+
     // If fetch fails, return a map with just the well-known stablecoins
     const fallbackTokens = {};
     STABLECOIN_MINTS.forEach(mint => {
@@ -111,7 +111,7 @@ async function fetchVerifiedTokens() {
         isStablecoin: true
       };
     });
-    
+
     return fallbackTokens;
   }
 }
@@ -126,13 +126,13 @@ async function isVerifiedToken(mintAddress) {
   if (STABLECOIN_MINTS.includes(mintAddress)) {
     return true;
   }
-  
+
   // Check if we need to refresh the cache
   const now = Date.now();
   if (!verifiedTokensCache || now - cacheLastUpdated > CACHE_TTL) {
     // Try to load from file cache first
     const fileCache = loadCachedVerifiedTokens();
-    
+
     if (fileCache && now - fileCache.lastUpdated < CACHE_TTL) {
       verifiedTokensCache = fileCache.tokens;
       cacheLastUpdated = fileCache.lastUpdated;
@@ -143,7 +143,7 @@ async function isVerifiedToken(mintAddress) {
       saveVerifiedTokensCache(verifiedTokensCache);
     }
   }
-  
+
   return verifiedTokensCache[mintAddress]?.verified || false;
 }
 
@@ -157,10 +157,10 @@ async function isStablecoin(mintAddress) {
   if (STABLECOIN_MINTS.includes(mintAddress)) {
     return true;
   }
-  
+
   // Ensure the verified tokens cache is loaded
   await isVerifiedToken(mintAddress);
-  
+
   return verifiedTokensCache[mintAddress]?.isStablecoin || false;
 }
 

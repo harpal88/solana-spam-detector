@@ -8,10 +8,10 @@
 const {
   makeApiRequest,
   makePublicRpcRequest
-} = require('./api-helpers');
+} = require('../api/api-helpers');
 
-const { isVerifiedToken, isStablecoin } = require('./token-whitelist');
-const { calculateTokenValue } = require('./token-price-fetcher');
+const { isVerifiedToken, isStablecoin } = require('../utils/token-whitelist');
+const { calculateTokenValue } = require('../utils/token-price-fetcher');
 
 /**
  * Analyze a transaction for dusting attacks

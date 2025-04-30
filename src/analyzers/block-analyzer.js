@@ -5,7 +5,7 @@
  * to detect potential dusting attacks.
  */
 
-const { makeRpcRequest } = require('./api-helpers');
+const { makeRpcRequest } = require('../api/api-helpers');
 const { analyzeTransaction } = require('./transaction-analyzer');
 
 /**

@@ -1,0 +1,33 @@
+{
+  "data": [
+    {
+      "tokenMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "timestamp": "2025-04-30T20:32:05.360Z",
+      "logs": [
+        "\n=== Solana Token Analysis ===",
+        "Analyzing token mint: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "Maximum transactions to analyze: 2",
+        "======================================\n",
+        "\nToken Information:",
+        "Name: USD Coin",
+        "Symbol: USDC",
+        "Decimals: 6",
+        "Supply: Large (Stablecoin)",
+        "Verified: Yes",
+        "Stablecoin: Yes",
+        "Description: A stablecoin pegged to the US Dollar",
+        "\nFetching transactions involving this token...",
+        "Found 2 transactions via direct token mint signatures",
+        "\nAnalyzing transactions...",
+        "Completed analysis of 2 transactions",
+        "\n=== Analysis Results ===",
+        "\nToken Analysis for USDC:",
+        "Analyzed 2 transactions involving this token",
+        "Found 0 potential dusting attacks (0.00% of transactions)",
+        "\nAssessment: This is a verified token (USDC) and is NOT used for dusting attacks",
+        "\n=== Analysis Complete ==="
+      ]
+    }
+  ],
+  "lastUpdated": "2025-04-30T20:32:05.362Z"
+}

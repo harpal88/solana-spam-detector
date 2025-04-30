@@ -1,0 +1,86 @@
+/* Dashboard Styles */
+
+body {
+  background-color: #f8f9fa;
+}
+
+.card {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border-radius: 0.5rem;
+  border: none;
+}
+
+.card-header {
+  border-top-left-radius: 0.5rem !important;
+  border-top-right-radius: 0.5rem !important;
+}
+
+.progress-stacked {
+  height: 1.5rem;
+}
+
+.progress-stacked .progress {
+  height: 1.5rem;
+}
+
+.nav-tabs .nav-link {
+  color: #495057;
+}
+
+.nav-tabs .nav-link.active {
+  font-weight: 500;
+}
+
+.btn-group .btn.active {
+  z-index: 0;
+}
+
+/* Custom colors for Solana theme */
+.bg-primary {
+  background-color: #9945FF !important;
+}
+
+.bg-success {
+  background-color: #14F195 !important;
+}
+
+.bg-info {
+  background-color: #00C2FF !important;
+}
+
+.btn-primary {
+  background-color: #9945FF;
+  border-color: #9945FF;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background-color: #8a3be0;
+  border-color: #8a3be0;
+}
+
+.btn-outline-primary {
+  color: #9945FF;
+  border-color: #9945FF;
+}
+
+.btn-outline-primary:hover, .btn-outline-primary.active {
+  background-color: #9945FF;
+  border-color: #9945FF;
+}
+
+.text-primary {
+  color: #9945FF !important;
+}
+
+/* Loading spinner */
+.spinner-border {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .card-body {
+    padding: 1rem;
+  }
+}

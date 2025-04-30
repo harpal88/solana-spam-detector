@@ -7,10 +7,65 @@
 
 const {
   getTransactionSignatures,
-  makeApiRequest
-} = require('./api-helpers');
+  makeApiRequest,
+  makeRpcRequest,
+  HELIUS_API_KEY
+} = require('../api/api-helpers');
 
 const { analyzeTransaction } = require('./transaction-analyzer');
+
+/**
+ * Check if a token is suspicious based on various indicators
+ * @param {Object} token - The token to check
+ * @returns {Object} - Object with isSuspicious flag and reasons array
+ */
+function checkIfTokenIsSuspicious(token) {
+  const suspiciousReasons = [];
+
+  // Check for very small token amounts (potential dusting)
+  if (token.amount && parseFloat(token.amount) <= 1) {
+    suspiciousReasons.push('Minimal token amount (≤1)');
+  }
+
+  // Check token metadata for suspicious indicators
+  if (token.name) {
+    // Check for suspicious words in token name
+    const suspiciousNameTerms = ['airdrop', 'claim', 'free', 'reward', 'bonus', 'support', 'verify'];
+    const name = token.name.toLowerCase();
+
+    for (const term of suspiciousNameTerms) {
+      if (name.includes(term)) {
+        suspiciousReasons.push(`Name contains suspicious term: ${term}`);
+        break;
+      }
+    }
+
+    // Check for names similar to popular tokens
+    const popularTokens = ['SOL', 'USDC', 'USDT', 'ETH', 'BTC', 'BONK'];
+    const upperName = token.name.toUpperCase();
+
+    for (const popularToken of popularTokens) {
+      if (upperName.includes(popularToken) && upperName !== popularToken) {
+        suspiciousReasons.push(`Name similar to ${popularToken}`);
+      }
+    }
+
+    // Check for website/URL in name
+    if (name.includes('.com') || name.includes('.io') || name.includes('.org') || name.includes('http')) {
+      suspiciousReasons.push('Name contains URL');
+    }
+  }
+
+  // Check for zero or very low supply tokens
+  if (token.supply && parseFloat(token.supply) < 100) {
+    suspiciousReasons.push('Very low token supply');
+  }
+
+  return {
+    isSuspicious: suspiciousReasons.length > 0,
+    reasons: suspiciousReasons
+  };
+}
 
 /**
  * Analyze wallet tokens for dusting
@@ -19,27 +74,94 @@ const { analyzeTransaction } = require('./transaction-analyzer');
  */
 async function analyzeWalletTokens(walletAddress) {
   try {
-    const tokensResponse = await makeApiRequest(`/addresses/${walletAddress}/tokens`);
+    console.log('Fetching token balances using getTokenAccountsByOwner...');
 
-    if (!tokensResponse) {
+    // Use the RPC method getTokenAccountsByOwner to get token accounts
+    const response = await makeRpcRequest('getTokenAccountsByOwner', [
+      walletAddress,
+      {
+        programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' // SPL Token program ID
+      },
+      {
+        encoding: 'jsonParsed'
+      }
+    ]);
+
+    if (!response || !response.result || !response.result.value) {
+      console.log('No token accounts found or error retrieving token data');
       return {
+        allTokens: [],
         suspiciousTokens: [],
         details: 'Error retrieving token data'
       };
     }
 
-    // Handle different possible response formats
+    // Process token accounts
+    const tokenAccounts = response.result.value;
+    console.log(`Found ${tokenAccounts.length} token accounts`);
+
+    // Extract token data from accounts
     let tokens = [];
-    if (tokensResponse.tokens && Array.isArray(tokensResponse.tokens)) {
-      tokens = tokensResponse.tokens;
-    } else if (Array.isArray(tokensResponse)) {
-      tokens = tokensResponse;
+    for (const account of tokenAccounts) {
+      try {
+        const parsedInfo = account.account.data.parsed.info;
+        const tokenAmount = parsedInfo.tokenAmount;
+
+        // Only include tokens with non-zero balance
+        if (tokenAmount.uiAmount > 0) {
+          tokens.push({
+            address: parsedInfo.mint,
+            amount: tokenAmount.uiAmount.toString(),
+            decimals: tokenAmount.decimals,
+            // We'll fetch name and symbol later
+            name: 'Unknown',
+            symbol: 'Unknown'
+          });
+        }
+      } catch (error) {
+        console.log(`Error parsing token account: ${error.message}`);
+      }
     }
 
+    // Fetch token metadata for each token
+    console.log(`Fetching metadata for ${tokens.length} tokens...`);
+    for (let i = 0; i < tokens.length; i++) {
+      try {
+        const token = tokens[i];
+        // Try to get token metadata
+        const { getTokenPrice } = require('../utils/token-price-fetcher');
+        const tokenInfo = await getTokenPrice(token.address);
+
+        if (tokenInfo && tokenInfo.name) {
+          token.name = tokenInfo.name;
+          token.symbol = tokenInfo.symbol || 'Unknown';
+        }
+
+        // Show progress
+        if ((i + 1) % 5 === 0 || i === tokens.length - 1) {
+          console.log(`Processed ${i + 1}/${tokens.length} tokens`);
+        }
+      } catch (error) {
+        console.log(`Error fetching metadata for token ${tokens[i].address}: ${error.message}`);
+      }
+    }
+
+    const allTokens = [];
     const suspiciousTokens = [];
 
     for (const token of tokens) {
       const suspiciousReasons = [];
+
+      // Format token data for consistent structure
+      const formattedToken = {
+        name: token.name || 'Unknown',
+        symbol: token.symbol || 'Unknown',
+        mint: token.address,
+        amount: token.amount,
+        decimals: token.decimals,
+        isSuspicious: false,
+        suspiciousReasons: []
+      };
 
       // Check for very small token amounts (potential dusting)
       if (token.amount && parseFloat(token.amount) <= 1) {
@@ -80,24 +202,26 @@ async function analyzeWalletTokens(walletAddress) {
         suspiciousReasons.push('Very low token supply');
       }
 
+      // Add suspicious reasons if any were found
       if (suspiciousReasons.length > 0) {
-        suspiciousTokens.push({
-          name: token.name || 'Unknown',
-          symbol: token.symbol || 'Unknown',
-          mint: token.address,
-          amount: token.amount,
-          suspiciousReasons
-        });
+        formattedToken.isSuspicious = true;
+        formattedToken.suspiciousReasons = suspiciousReasons;
+        suspiciousTokens.push(formattedToken);
       }
+
+      // Add to all tokens list
+      allTokens.push(formattedToken);
     }
 
     return {
       totalTokens: tokens.length,
+      allTokens,
       suspiciousTokens
     };
   } catch (error) {
     console.error('Error analyzing wallet tokens:', error);
     return {
+      allTokens: [],
       suspiciousTokens: [],
       details: 'Error analyzing token data'
     };
@@ -491,7 +615,7 @@ async function detectDustingAttacks(walletAddress, numTransactions = 10) {
     }
 
     // Fetch token information for all suspicious tokens
-    const { getTokenPrice } = require('./token-price-fetcher');
+    const { getTokenPrice } = require('../utils/token-price-fetcher');
 
     // Track total value for summary
     let totalValueUSD = 0;
@@ -636,7 +760,326 @@ async function detectDustingAttacks(walletAddress, numTransactions = 10) {
   console.log('\n=== Analysis Complete ===');
 }
 
+/**
+ * Analyze wallet tokens as a standalone command
+ * @param {string} walletAddress - The wallet address to analyze
+ * @param {number} numTransactions - Number of transactions to analyze (optional)
+ */
+async function analyzeWalletTokensCommand(walletAddress, numTransactions = 0) {
+  console.log(`\n=== Solana Wallet Token Analysis ===`);
+  console.log(`Analyzing wallet: ${walletAddress}`);
+  console.log('======================================\n');
+
+  try {
+    // Fetch token accounts using the exact structure provided
+    console.log('Fetching token accounts...');
+
+    // Using the exact format from the example
+    const response = await fetch('https://mainnet.helius-rpc.com/?api-key=' + HELIUS_API_KEY, {
+      method: 'POST',
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getTokenAccountsByOwner",
+        "params": [
+          walletAddress,
+          {
+            "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "encoding": "jsonParsed"
+          }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    console.log('Response received:', JSON.stringify(data).substring(0, 100) + '...');
+
+    if (!data || !data.result || !data.result.value) {
+      console.log('No token accounts found or error retrieving token data');
+      if (data && data.error) {
+        console.log('Error:', data.error);
+      }
+      return;
+    }
+
+    // Process token accounts
+    const tokenAccounts = data.result.value;
+    console.log(`Found ${tokenAccounts.length} token accounts`);
+
+    if (tokenAccounts.length === 0) {
+      console.log('No tokens found in this wallet.');
+      return;
+    }
+
+    // Extract token data from accounts
+    let tokens = [];
+    for (const account of tokenAccounts) {
+      try {
+        console.log(`Processing account: ${account.pubkey}`);
+        const parsedInfo = account.account.data.parsed.info;
+        const tokenAmount = parsedInfo.tokenAmount;
+
+        // Only include tokens with non-zero balance
+        if (tokenAmount.uiAmount > 0) {
+          tokens.push({
+            mint: parsedInfo.mint,
+            amount: tokenAmount.uiAmount,
+            decimals: tokenAmount.decimals,
+            name: 'Unknown',
+            symbol: 'Unknown'
+          });
+          console.log(`Added token: ${parsedInfo.mint} with amount ${tokenAmount.uiAmount}`);
+        }
+      } catch (error) {
+        console.log(`Error parsing token account: ${error.message}`);
+      }
+    }
+
+    console.log(`Found ${tokens.length} tokens with non-zero balance in wallet.\n`);
+
+    // Initialize maps for token data
+    const dustingTokenMap = new Map(); // Map of token mint to array of amounts
+    const analysisResults = [];
+
+    // Step 2: Optionally analyze recent transactions if numTransactions > 0
+    if (numTransactions > 0) {
+      console.log(`\nAdditionally analyzing ${numTransactions} recent transactions for token transfers...`);
+      console.log('Fetching transaction signatures...');
+      const signatures = await getTransactionSignatures(walletAddress, numTransactions);
+
+      if (signatures.length === 0) {
+        console.log('No transactions found for this wallet address.');
+      } else {
+        console.log(`Found ${signatures.length} transactions.`);
+
+        // Step 3: Analyze each transaction for token transfers
+        console.log('Analyzing transactions for token transfers...');
+
+        // Process each transaction
+        for (let i = 0; i < signatures.length; i++) {
+          const signature = signatures[i];
+
+          try {
+            const result = await analyzeTransaction(signature);
+            analysisResults.push(result);
+
+            // Collect token transfers
+            if (result.isDusting) {
+              result.dustingIndicators.forEach(indicator => {
+                if (indicator.type === 'token' && indicator.token) {
+                  if (!dustingTokenMap.has(indicator.token)) {
+                    dustingTokenMap.set(indicator.token, []);
+                  }
+                  // Add amount if it exists
+                  if (indicator.amount) {
+                    dustingTokenMap.get(indicator.token).push({
+                      amount: parseFloat(indicator.amount),
+                      valueUSD: indicator.valueUSD || null
+                    });
+                  }
+                }
+              });
+            }
+
+            // Show progress
+            console.log(`Analyzed ${i + 1}/${signatures.length} transactions`);
+          } catch (error) {
+            console.error(`Error analyzing transaction ${signature.substring(0, 8)}: ${error.message}`);
+          }
+        }
+      }
+    }
+
+    // Step 4: Display results
+    console.log('\n=== Analysis Results ===');
+
+    // Token analysis results
+    console.log(`\nToken Analysis:`);
+
+    // Get token mints as an array from transaction analysis (if performed)
+    const dustingTokens = Array.from(dustingTokenMap.keys());
+
+    // Include tokens involved in dusting attacks (if transaction analysis was performed)
+    const dustingTokensNotInWallet = numTransactions > 0 ?
+      dustingTokens.filter(tokenMint => !tokens.some(token => token.mint === tokenMint)) :
+      [];
+
+    // Display token statistics
+    console.log(`Found ${tokens.length} total tokens in wallet`);
+
+    // Count suspicious tokens
+    const suspiciousTokens = tokens.filter(token => token.isSuspicious);
+    console.log(`Found ${suspiciousTokens.length} suspicious tokens in wallet`);
+
+    if (numTransactions > 0) {
+      console.log(`Detected ${dustingTokensNotInWallet.length} additional suspicious tokens in recent transactions`);
+    }
+
+    // Track total value for summary (placeholder)
+    let totalValueUSD = 0;
+    let suspiciousValueUSD = 0;
+
+    // Display all tokens in wallet
+    if (tokens && tokens.length > 0) {
+        console.log(`\nAll Tokens in Wallet (${tokens.length}):`);
+
+        // Collect all token info first to avoid interleaved console output
+        const allTokenInfoArray = [];
+
+        // Process all tokens in wallet
+        for (let i = 0; i < tokens.length; i++) {
+          const token = tokens[i];
+
+          // Try to get token metadata
+          let tokenInfo;
+          try {
+            console.log(`Fetching metadata for token: ${token.mint}`);
+
+            // Get token metadata from Helius
+            const metadataResponse = await fetch(`https://api.helius.xyz/v0/tokens/${token.mint}?api-key=${HELIUS_API_KEY}`);
+            const metadata = await metadataResponse.json();
+
+            if (metadata && metadata.name) {
+              token.name = metadata.name;
+              token.symbol = metadata.symbol || 'Unknown';
+              tokenInfo = metadata;
+
+              // Log success
+              console.log(`  Got metadata for ${token.name} (${token.symbol})`);
+            } else {
+              console.log(`  No metadata found for token: ${token.mint}`);
+            }
+          } catch (error) {
+            console.log(`Error fetching token info: ${error.message}`);
+          }
+
+          // Check if token is suspicious
+          try {
+            const isSuspicious = checkIfTokenIsSuspicious(token);
+            token.isSuspicious = isSuspicious.isSuspicious;
+            token.suspiciousReasons = isSuspicious.reasons;
+          } catch (error) {
+            console.log(`Error checking if token is suspicious: ${error.message}`);
+            token.isSuspicious = false;
+            token.suspiciousReasons = [];
+          }
+
+          // Calculate value (placeholder for now)
+          let valueUSD = null;
+
+          // Store token info for later display
+          allTokenInfoArray.push({
+            index: i + 1,
+            token,
+            tokenInfo,
+            valueUSD
+          });
+        }
+
+        // Now display all token info in a clean, organized way
+        for (const info of allTokenInfoArray) {
+          const token = info.token;
+          console.log(`\n${info.index}. ${token.name || 'Unknown'} (${token.symbol || 'Unknown'})`);
+          console.log(`   Mint: ${token.mint}`);
+          console.log(`   Amount: ${token.amount}`);
+          console.log(`   Decimals: ${token.decimals}`);
+
+          // Show suspicious indicators if any
+          if (token.isSuspicious) {
+            console.log(`   ⚠️ Suspicious indicators: ${token.suspiciousReasons.join(', ')}`);
+          }
+        }
+      }
+
+      // Only show suspicious tokens from transactions if transaction analysis was performed
+      if (numTransactions > 0 && dustingTokensNotInWallet.length > 0) {
+        console.log('\nSuspicious Tokens in Transactions:');
+
+        // Collect all token info first to avoid interleaved console output
+        const tokenInfoArray = [];
+
+        // Process tokens not in wallet
+        for (let i = 0; i < dustingTokensNotInWallet.length; i++) {
+          const tokenMint = dustingTokensNotInWallet[i];
+          // Get amounts from the map
+          const amountEntries = dustingTokenMap.get(tokenMint) || [];
+          const totalAmount = amountEntries.reduce((sum, entry) => sum + entry.amount, 0);
+
+          // Try to get token price and name
+          let tokenInfo;
+          try {
+            console.log(`Fetching price and metadata for token: ${tokenMint}`);
+            const { getTokenPrice } = require('../utils/token-price-fetcher');
+            tokenInfo = await getTokenPrice(tokenMint);
+          } catch (error) {
+            console.log(`Error fetching token info: ${error.message}`);
+          }
+
+          // Calculate total value if price is available
+          let totalTokenValueUSD = null;
+          if (tokenInfo && tokenInfo.price && tokenInfo.price.pricePerToken) {
+            totalTokenValueUSD = totalAmount * tokenInfo.price.pricePerToken;
+            totalValueUSD += totalTokenValueUSD;
+          }
+
+          // Store token info for later display
+          tokenInfoArray.push({
+            index: i + 1,
+            tokenMint,
+            tokenInfo,
+            totalAmount,
+            totalTokenValueUSD,
+            suspiciousIndicators: tokenInfo && tokenInfo.scamAnalysis &&
+              tokenInfo.scamAnalysis.suspiciousIndicators ?
+              tokenInfo.scamAnalysis.suspiciousIndicators : []
+          });
+        }
+
+        // Now display all token info in a clean, organized way
+        for (const info of tokenInfoArray) {
+          console.log(`\n${info.index}. ${info.tokenInfo ? info.tokenInfo.name + ' (' + info.tokenInfo.symbol + ')' : 'Token Mint: ' + info.tokenMint}`);
+          console.log(`   Status: Involved in dusting attack`);
+          console.log(`   Total Amount Detected: ${info.totalAmount}`);
+
+          // Show value (use 0 if unavailable)
+          if (info.totalTokenValueUSD !== null) {
+            console.log(`   Estimated Value: $${info.totalTokenValueUSD.toFixed(4)} USD`);
+          } else {
+            console.log(`   Estimated Value: $0.0000 USD (price data unavailable)`);
+          }
+
+          // Show suspicious indicators if available
+          if (info.suspiciousIndicators.length > 0) {
+            console.log(`   Suspicious Indicators: ${info.suspiciousIndicators[0]}${
+              info.suspiciousIndicators.length > 1 ?
+              ` and ${info.suspiciousIndicators.length - 1} more` : ''}`);
+          }
+        }
+      }
+
+      // Summary is already displayed above
+    }
+
+    // Add recommendations section
+    console.log('\n⚠️ Recommendations:');
+    console.log('1. Avoid interacting with unknown tokens received in your wallet');
+    console.log('2. Consider using a burner wallet to isolate suspicious assets');
+    console.log('3. Never click on links in token metadata or transaction memos');
+    console.log('4. For maximum security, create a new wallet and transfer your legitimate assets there');
+
+    console.log('\n=== Analysis Complete ===');
+  } catch (error) {
+    console.error('Error analyzing wallet tokens:', error);
+  }
+}
+
 module.exports = {
   analyzeWalletTokens,
+  analyzeWalletTokensCommand,
   detectDustingAttacks
 };

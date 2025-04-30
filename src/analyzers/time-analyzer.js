@@ -5,7 +5,7 @@
  * within a specific time range to detect potential dusting attacks.
  */
 
-const { getTransactionSignatures } = require('./api-helpers');
+const { getTransactionSignatures } = require('../api/api-helpers');
 const { analyzeTransaction } = require('./transaction-analyzer');
 
 /**
@@ -14,28 +14,60 @@ const { analyzeTransaction } = require('./transaction-analyzer');
  * @returns {number} Unix timestamp (seconds since epoch)
  */
 function parseDate(dateInput) {
+  console.log(`Parsing date input: ${dateInput} (type: ${typeof dateInput})`);
+
   // If it's already a number, assume it's a timestamp
   if (typeof dateInput === 'number') {
+    // Check if it's in milliseconds (13 digits) and convert to seconds if needed
+    if (dateInput > 10000000000) {
+      console.log(`Converting millisecond timestamp ${dateInput} to seconds: ${Math.floor(dateInput / 1000)}`);
+      return Math.floor(dateInput / 1000);
+    }
+    console.log(`Using timestamp as is: ${dateInput}`);
     return dateInput;
   }
 
   // If it's a Date object, convert to timestamp
   if (dateInput instanceof Date) {
-    return Math.floor(dateInput.getTime() / 1000);
+    const timestamp = Math.floor(dateInput.getTime() / 1000);
+    console.log(`Converting Date object to timestamp: ${timestamp}`);
+    return timestamp;
   }
 
   // If it's a string, try to parse it
   if (typeof dateInput === 'string') {
-    // First try parsing as a timestamp
-    const parsedTimestamp = parseInt(dateInput, 10);
-    if (!isNaN(parsedTimestamp)) {
-      return parsedTimestamp;
+    // Check for date format strings first
+    // For date strings like "2023-01-01", create a specific date
+    if (dateInput.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateInput.split('-').map(Number);
+      const parsedDate = new Date(year, month - 1, day); // Month is 0-indexed in JS Date
+      const timestamp = Math.floor(parsedDate.getTime() / 1000);
+      console.log(`Parsed date string "${dateInput}" to: ${parsedDate.toLocaleString()} (timestamp: ${timestamp})`);
+      return timestamp;
     }
 
-    // Try parsing as a date string
-    const parsedDate = new Date(dateInput);
-    if (!isNaN(parsedDate.getTime())) {
-      return Math.floor(parsedDate.getTime() / 1000);
+    // Try other date formats
+    try {
+      const parsedDate = new Date(dateInput);
+      if (!isNaN(parsedDate.getTime())) {
+        const timestamp = Math.floor(parsedDate.getTime() / 1000);
+        console.log(`Parsed date string "${dateInput}" to: ${parsedDate.toLocaleString()} (timestamp: ${timestamp})`);
+        return timestamp;
+      }
+    } catch (error) {
+      console.error(`Error parsing date string: ${error.message}`);
+    }
+
+    // If date parsing failed, try parsing as a timestamp
+    const parsedTimestamp = parseInt(dateInput, 10);
+    if (!isNaN(parsedTimestamp)) {
+      // Check if it's in milliseconds (13 digits) and convert to seconds if needed
+      if (parsedTimestamp > 10000000000) {
+        console.log(`Converting string millisecond timestamp ${parsedTimestamp} to seconds: ${Math.floor(parsedTimestamp / 1000)}`);
+        return Math.floor(parsedTimestamp / 1000);
+      }
+      console.log(`Using string timestamp as is: ${parsedTimestamp}`);
+      return parsedTimestamp;
     }
   }
 
@@ -74,7 +106,9 @@ async function analyzeTimeRange(walletAddress, startTime, endTime, maxTransactio
 
     // Unfortunately, Helius API doesn't directly support time-based filtering
     // So we'll get all transactions and filter them by timestamp
-    const signatures = await getTransactionSignatures(walletAddress, 100);  // Get more than needed to filter
+    // We'll get a reasonable number of transactions to filter, but respect the maxTransactions limit
+    const fetchLimit = Math.min(maxTransactions * 2, 100); // Get at most 2x the requested transactions or 100, whichever is smaller
+    const signatures = await getTransactionSignatures(walletAddress, fetchLimit);
 
     if (signatures.length === 0) {
       console.log('No transactions found for this wallet address.');

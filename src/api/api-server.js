@@ -13,15 +13,19 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const swaggerJsDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
+const path = require('path');
 
 // Import analyzer modules
-const { detectDustingAttacks, analyzeWalletTokens } = require('./wallet-analyzer');
-const { analyzeTransaction } = require('./transaction-analyzer');
-const { analyzeBlockRange } = require('./block-analyzer');
-const { analyzeTokenMint } = require('./token-analyzer');
-const { analyzeBatchWallets } = require('./batch-analyzer');
-const { analyzeTimeRange } = require('./time-analyzer');
-const { analyzeMemo, analyzeMemoList } = require('./memo-analyzer');
+const { detectDustingAttacks, analyzeWalletTokens, analyzeWalletTokensCommand } = require('../analyzers/wallet-analyzer-new');
+const { analyzeTransaction } = require('../analyzers/transaction-analyzer');
+const { analyzeBlockRange } = require('../analyzers/block-analyzer');
+const { analyzeTokenMint } = require('../analyzers/token-analyzer');
+const { analyzeBatchWallets } = require('../analyzers/batch-analyzer');
+const { analyzeTimeRange } = require('../analyzers/time-analyzer');
+const { analyzeMemo, analyzeMemoList, analyzeMemoText } = require('../analyzers/memo-analyzer');
+
+// Import dashboard API
+const dashboardRoutes = require('./dashboard-api');
 
 // Create Express app
 const app = express();
@@ -44,6 +48,9 @@ const apiLimiter = rateLimit({
 
 // Apply rate limiting to all API routes
 app.use('/v1/api', apiLimiter);
+
+// Serve static files for dashboard
+app.use(express.static(path.join(__dirname, '../../public')));
 
 // Swagger documentation setup
 const swaggerOptions = {
@@ -181,6 +188,10 @@ const swaggerOptions = {
             walletAddress: {
               type: 'string',
               description: 'Solana wallet address to analyze'
+            },
+            numTransactions: {
+              type: 'integer',
+              description: 'Number of transactions to analyze (default: 0, only analyze tokens in wallet)'
             }
           }
         },
@@ -204,6 +215,16 @@ const swaggerOptions = {
                 type: 'string'
               },
               description: 'Array of memo texts to analyze'
+            }
+          }
+        },
+        MemoTextAnalysisRequest: {
+          type: 'object',
+          required: ['memoText'],
+          properties: {
+            memoText: {
+              type: 'string',
+              description: 'Memo text to analyze'
             }
           }
         },
@@ -232,7 +253,7 @@ const swaggerOptions = {
       }
     }
   },
-  apis: ['./api-server.js'] // Path to the API docs
+  apis: ['./src/api/api-server.js'] // Path to the API docs
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
@@ -247,6 +268,152 @@ const createApiResponse = (success, data = null, error = null) => {
     error
   };
 };
+
+/**
+ * Helper function to parse token analysis logs into structured data
+ * @param {string[]} logs - The console output from token analysis
+ * @returns {Object} - Structured token data
+ */
+function parseTokenAnalysisLogs(logs) {
+  try {
+    const lines = logs.join('\n').split('\n');
+    const tokens = [];
+    let currentToken = null;
+    let totalTokens = 0;
+    let suspiciousTokens = 0;
+    let totalValue = 0;
+    let suspiciousValue = 0;
+
+    // Parse the logs line by line
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+
+      // Extract total tokens count
+      if (line.startsWith('Found') && line.includes('total tokens in wallet')) {
+        const match = line.match(/Found (\d+) total tokens in wallet/);
+        if (match) {
+          totalTokens = parseInt(match[1], 10);
+        }
+      }
+
+      // Extract suspicious tokens count
+      if (line.startsWith('Found') && line.includes('suspicious tokens in wallet')) {
+        const match = line.match(/Found (\d+) suspicious tokens in wallet/);
+        if (match) {
+          suspiciousTokens = parseInt(match[1], 10);
+        }
+      }
+
+      // Extract total value
+      if (line.startsWith('Total Value:')) {
+        const match = line.match(/Total Value: \$([0-9.]+) USD/);
+        if (match) {
+          totalValue = parseFloat(match[1]);
+        }
+      }
+
+      // Extract suspicious value
+      if (line.startsWith('Suspicious Token Value:')) {
+        const match = line.match(/Suspicious Token Value: \$([0-9.]+) USD/);
+        if (match) {
+          suspiciousValue = parseFloat(match[1]);
+        }
+      }
+
+      // Start of a new token
+      if (line.match(/^\d+\. .+/)) {
+        // Save previous token if exists
+        if (currentToken) {
+          tokens.push(currentToken);
+        }
+
+        // Extract token name and symbol
+        const match = line.match(/^\d+\. (.+) \((.+)\)$/);
+        if (match) {
+          currentToken = {
+            name: match[1],
+            symbol: match[2],
+            isSuspicious: false,
+            suspiciousReasons: []
+          };
+        } else {
+          currentToken = {
+            name: 'Unknown',
+            symbol: 'Unknown',
+            isSuspicious: false,
+            suspiciousReasons: []
+          };
+        }
+      }
+
+      // Extract token mint
+      if (line.startsWith('   Mint:') && currentToken) {
+        currentToken.mint = line.replace('   Mint:', '').trim();
+      }
+
+      // Extract token amount
+      if (line.startsWith('   Amount:') && currentToken) {
+        currentToken.amount = parseFloat(line.replace('   Amount:', '').trim());
+      }
+
+      // Extract token decimals
+      if (line.startsWith('   Decimals:') && currentToken) {
+        currentToken.decimals = parseInt(line.replace('   Decimals:', '').trim(), 10);
+      }
+
+      // Extract token price
+      if (line.startsWith('   Price:') && currentToken) {
+        const match = line.match(/Price: \$([0-9.]+) USD/);
+        if (match) {
+          currentToken.price = parseFloat(match[1]);
+        }
+      }
+
+      // Extract token value
+      if (line.startsWith('   Value:') && currentToken) {
+        const match = line.match(/Value: \$([0-9.]+) USD/);
+        if (match) {
+          currentToken.value = parseFloat(match[1]);
+        }
+      }
+
+      // Extract suspicious indicators
+      if (line.includes('⚠️ Suspicious indicators:') && currentToken) {
+        currentToken.isSuspicious = true;
+        const indicators = line.replace('   ⚠️ Suspicious indicators:', '').trim();
+        currentToken.suspiciousReasons = indicators.split(', ');
+      }
+    }
+
+    // Add the last token if exists
+    if (currentToken) {
+      tokens.push(currentToken);
+    }
+
+    return {
+      summary: {
+        totalTokens,
+        suspiciousTokens,
+        totalValue,
+        suspiciousValue,
+        riskPercentage: totalValue > 0 ? (suspiciousValue / totalValue * 100).toFixed(1) : 0
+      },
+      tokens
+    };
+  } catch (error) {
+    console.error('Error parsing token analysis logs:', error);
+    return {
+      summary: {
+        totalTokens: 0,
+        suspiciousTokens: 0,
+        totalValue: 0,
+        suspiciousValue: 0,
+        riskPercentage: 0
+      },
+      tokens: []
+    };
+  }
+}
 
 // Capture console output for API responses
 class OutputCapture {
@@ -684,7 +851,7 @@ app.post('/v1/api/time', async (req, res) => {
  * /v1/api/wallet-tokens:
  *   post:
  *     summary: Analyze tokens in a wallet for suspicious indicators
- *     description: Analyzes tokens in a Solana wallet to detect suspicious indicators
+ *     description: Analyzes tokens in a Solana wallet to detect suspicious indicators and potential dusting attacks
  *     tags:
  *       - Wallet Analysis
  *     requestBody:
@@ -695,6 +862,7 @@ app.post('/v1/api/time', async (req, res) => {
  *             $ref: '#/components/schemas/WalletTokensAnalysisRequest'
  *           example:
  *             walletAddress: "vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg"
+ *             numTransactions: 0
  *     responses:
  *       200:
  *         description: Wallet tokens analysis results
@@ -702,6 +870,27 @@ app.post('/v1/api/time', async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
+ *             example:
+ *               success: true
+ *               timestamp: "2023-05-15T12:34:56.789Z"
+ *               data:
+ *                 walletAddress: "vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg"
+ *                 numTransactions: 0
+ *                 tokenInfo:
+ *                   summary:
+ *                     totalTokens: 6
+ *                     suspiciousTokens: 1
+ *                     totalValue: 0
+ *                     suspiciousValue: 0
+ *                     riskPercentage: 0
+ *                   tokens:
+ *                     - name: "Unknown"
+ *                       symbol: "Unknown"
+ *                       mint: "HyU5k4ZKMkLNnbuZDAGvwxTXbxubAcdJNYcotAre2fBL"
+ *                       amount: 1
+ *                       decimals: 0
+ *                       isSuspicious: true
+ *                       suspiciousReasons: ["Minimal token amount (≤1)"]
  *       400:
  *         description: Invalid request parameters
  *       429:
@@ -711,7 +900,7 @@ app.post('/v1/api/time', async (req, res) => {
  */
 app.post('/v1/api/wallet-tokens', async (req, res) => {
   try {
-    const { walletAddress } = req.body;
+    const { walletAddress, numTransactions = 0 } = req.body;
 
     if (!walletAddress) {
       return res.status(400).json(createApiResponse(false, null, 'Wallet address is required'));
@@ -721,16 +910,20 @@ app.post('/v1/api/wallet-tokens', async (req, res) => {
     const outputCapture = new OutputCapture();
     outputCapture.start();
 
-    // Run the analysis
-    const result = await analyzeWalletTokens(walletAddress);
+    // Run the analysis with the enhanced command
+    await analyzeWalletTokensCommand(walletAddress, numTransactions);
 
     // Get captured logs
     const logs = outputCapture.stop();
 
+    // Parse the logs to extract token information
+    const tokenInfo = parseTokenAnalysisLogs(logs);
+
     // Return the response
     res.json(createApiResponse(true, {
       walletAddress,
-      result,
+      numTransactions,
+      tokenInfo,
       logs
     }));
   } catch (error) {
@@ -859,6 +1052,73 @@ app.post('/v1/api/memo-batch', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /v1/api/memo-text:
+ *   post:
+ *     summary: Analyze memo text directly for suspicious content
+ *     description: Analyzes a memo text directly to detect potential scams and phishing attempts
+ *     tags:
+ *       - Memo Analysis
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MemoTextAnalysisRequest'
+ *           example:
+ *             memoText: "Claim your free airdrop at example.com"
+ *     responses:
+ *       200:
+ *         description: Memo text analysis results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       400:
+ *         description: Invalid request parameters
+ *       429:
+ *         description: Too many requests
+ *       500:
+ *         description: Server error
+ */
+app.post('/v1/api/memo-text', async (req, res) => {
+  try {
+    const { memoText } = req.body;
+
+    if (!memoText) {
+      return res.status(400).json(createApiResponse(false, null, 'Memo text is required'));
+    }
+
+    // Capture console output
+    const outputCapture = new OutputCapture();
+    outputCapture.start();
+
+    // Run the analysis
+    const result = analyzeMemoText(memoText);
+
+    // Get captured logs
+    const logs = outputCapture.stop();
+
+    // Return the response
+    res.json(createApiResponse(true, {
+      memoText,
+      result,
+      logs
+    }));
+  } catch (error) {
+    res.status(500).json(createApiResponse(false, null, error.message));
+  }
+});
+
+// Register dashboard routes
+app.use('/v1/api/dashboard', dashboardRoutes);
+
+// Dashboard route
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/dashboard/index.html'));
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -869,4 +1129,5 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Solana Spam Detector API server running on port ${PORT}`);
   console.log(`API documentation available at http://localhost:${PORT}/api-docs`);
+  console.log(`Dashboard available at http://localhost:${PORT}/dashboard`);
 });

@@ -12,10 +12,10 @@ const {
   makeExplorerRequest,
   HELIUS_API_URL,
   HELIUS_API_KEY
-} = require('./api-helpers');
+} = require('../api/api-helpers');
 
 const { analyzeTransaction } = require('./transaction-analyzer');
-const { isVerifiedToken, isStablecoin } = require('./token-whitelist');
+const { isVerifiedToken, isStablecoin } = require('../utils/token-whitelist');
 
 // Logging configuration
 const VERBOSE_LOGGING = false; // Set to false for clean output
