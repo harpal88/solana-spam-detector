@@ -11,6 +11,7 @@ const {
   collectTokenAnalysisData,
   collectTransactionAnalysisData,
   collectWalletAnalysisData,
+  collectAddressPoisoningData,
   getDashboardStats,
   getTimeSeriesData
 } = require('../dashboard/dashboard-data-collector');
@@ -68,7 +69,7 @@ router.get('/stats', (req, res) => {
  *         name: dataType
  *         schema:
  *           type: string
- *           enum: [tokens, transactions, wallets]
+ *           enum: [tokens, transactions, wallets, addressPoisoning]
  *         required: true
  *         description: Type of data to retrieve
  *       - in: query
@@ -94,8 +95,8 @@ router.get('/time-series', (req, res) => {
   try {
     const { dataType, timeframe = 'day' } = req.query;
 
-    if (!dataType || !['tokens', 'transactions', 'wallets'].includes(dataType)) {
-      return res.status(400).json(createApiResponse(false, null, 'Invalid data type. Must be one of: tokens, transactions, wallets'));
+    if (!dataType || !['tokens', 'transactions', 'wallets', 'addressPoisoning'].includes(dataType)) {
+      return res.status(400).json(createApiResponse(false, null, 'Invalid data type. Must be one of: tokens, transactions, wallets, addressPoisoning'));
     }
 
     if (!['day', 'week', 'month'].includes(timeframe)) {
@@ -248,6 +249,55 @@ router.post('/collect/wallet', async (req, res) => {
 
     const result = await collectWalletAnalysisData(walletAddress, numTransactions);
     res.json(createApiResponse(true, { message: 'Wallet analysis data collected', walletAddress }));
+  } catch (error) {
+    res.status(500).json(createApiResponse(false, null, error.message));
+  }
+});
+
+/**
+ * @swagger
+ * /v1/api/dashboard/collect/address-poisoning:
+ *   post:
+ *     summary: Collect address poisoning analysis data
+ *     description: Analyzes a wallet for address poisoning attempts and stores the results for dashboard visualization
+ *     tags:
+ *       - Dashboard
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [walletAddress]
+ *             properties:
+ *               walletAddress:
+ *                 type: string
+ *                 description: Wallet address to analyze for address poisoning attempts
+ *               numTransactions:
+ *                 type: integer
+ *                 description: Number of transactions to analyze (default is 50)
+ *     responses:
+ *       200:
+ *         description: Address poisoning analysis data collected
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       400:
+ *         description: Invalid request parameters
+ *       500:
+ *         description: Server error
+ */
+router.post('/collect/address-poisoning', async (req, res) => {
+  try {
+    const { walletAddress, numTransactions = 50 } = req.body;
+
+    if (!walletAddress) {
+      return res.status(400).json(createApiResponse(false, null, 'Wallet address is required'));
+    }
+
+    const result = await collectAddressPoisoningData(walletAddress, numTransactions);
+    res.json(createApiResponse(true, { message: 'Address poisoning analysis data collected', walletAddress }));
   } catch (error) {
     res.status(500).json(createApiResponse(false, null, error.message));
   }

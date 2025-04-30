@@ -7,6 +7,7 @@
 const { analyzeTokenMint } = require('../analyzers/token-analyzer');
 const { analyzeTransaction } = require('../analyzers/transaction-analyzer');
 const { detectDustingAttacks } = require('../analyzers/wallet-analyzer');
+const { detectAddressPoisoning } = require('../analyzers/address-poisoning-analyzer.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -20,6 +21,7 @@ if (!fs.existsSync(DATA_DIR)) {
 const TOKEN_ANALYSIS_FILE = path.join(DATA_DIR, 'token-analysis.json');
 const TRANSACTION_ANALYSIS_FILE = path.join(DATA_DIR, 'transaction-analysis.json');
 const WALLET_ANALYSIS_FILE = path.join(DATA_DIR, 'wallet-analysis.json');
+const ADDRESS_POISONING_FILE = path.join(DATA_DIR, 'address-poisoning-analysis.json');
 
 /**
  * Initialize data storage files if they don't exist
@@ -37,6 +39,10 @@ function initializeDataStorage() {
 
   if (!fs.existsSync(WALLET_ANALYSIS_FILE)) {
     fs.writeFileSync(WALLET_ANALYSIS_FILE, JSON.stringify(initialData));
+  }
+
+  if (!fs.existsSync(ADDRESS_POISONING_FILE)) {
+    fs.writeFileSync(ADDRESS_POISONING_FILE, JSON.stringify(initialData));
   }
 
   console.log('Data storage initialized');
@@ -222,6 +228,7 @@ function getDashboardStats() {
   const tokenData = readData(TOKEN_ANALYSIS_FILE);
   const transactionData = readData(TRANSACTION_ANALYSIS_FILE);
   const walletData = readData(WALLET_ANALYSIS_FILE);
+  const addressPoisoningData = readData(ADDRESS_POISONING_FILE);
 
   // Calculate token statistics
   const tokenStats = calculateTokenStats(tokenData.data);
@@ -232,10 +239,14 @@ function getDashboardStats() {
   // Calculate wallet statistics
   const walletStats = calculateWalletStats(walletData.data);
 
+  // Calculate address poisoning statistics
+  const addressPoisoningStats = calculateAddressPoisoningStats(addressPoisoningData.data);
+
   return {
     tokens: tokenStats,
     transactions: transactionStats,
     wallets: walletStats,
+    addressPoisoning: addressPoisoningStats,
     lastUpdated: new Date().toISOString()
   };
 }
@@ -405,7 +416,7 @@ function calculateWalletStats(walletAnalysisData) {
 
 /**
  * Get time series data for dashboard charts
- * @param {string} dataType - Type of data (tokens, transactions, wallets)
+ * @param {string} dataType - Type of data (tokens, transactions, wallets, addressPoisoning)
  * @param {string} timeframe - Timeframe for grouping (day, week, month)
  * @returns {Object} Time series data
  */
@@ -422,6 +433,9 @@ function getTimeSeriesData(dataType, timeframe = 'day') {
       break;
     case 'wallets':
       dataFile = WALLET_ANALYSIS_FILE;
+      break;
+    case 'addressPoisoning':
+      dataFile = ADDRESS_POISONING_FILE;
       break;
     default:
       throw new Error(`Invalid data type: ${dataType}`);
@@ -608,6 +622,47 @@ function formatTimeSeriesData(groupedData, dataType) {
         }
       ];
       break;
+
+    case 'addressPoisoning':
+      // Count wallets with poisoning attempts by day
+      const walletsWithPoisoning = labels.map(date => {
+        const dayData = groupedData[date];
+        return dayData.filter(item => item.poisoningAttemptsCount > 0).length;
+      });
+
+      // Count total poisoning attempts by day
+      const totalPoisoningAttempts = labels.map(date => {
+        const dayData = groupedData[date];
+        return dayData.reduce((sum, item) => sum + item.poisoningAttemptsCount, 0);
+      });
+
+      // Count total wallets analyzed by day
+      const totalPoisoningWallets = labels.map(date => groupedData[date].length);
+
+      datasets = [
+        {
+          label: 'Wallets with Poisoning Attempts',
+          data: walletsWithPoisoning,
+          backgroundColor: 'rgba(255, 99, 132, 0.5)',
+          borderColor: 'rgb(255, 99, 132)',
+          borderWidth: 1
+        },
+        {
+          label: 'Total Poisoning Attempts',
+          data: totalPoisoningAttempts,
+          backgroundColor: 'rgba(255, 206, 86, 0.5)',
+          borderColor: 'rgb(255, 206, 86)',
+          borderWidth: 1
+        },
+        {
+          label: 'Total Wallets Analyzed',
+          data: totalPoisoningWallets,
+          backgroundColor: 'rgba(54, 162, 235, 0.5)',
+          borderColor: 'rgb(54, 162, 235)',
+          borderWidth: 1
+        }
+      ];
+      break;
   }
 
   return {
@@ -616,11 +671,126 @@ function formatTimeSeriesData(groupedData, dataType) {
   };
 }
 
+/**
+ * Collect address poisoning analysis data
+ * @param {string} walletAddress - Wallet address to analyze
+ * @param {number} numTransactions - Number of transactions to analyze
+ * @returns {Promise<Object>} Analysis results
+ */
+async function collectAddressPoisoningData(walletAddress, numTransactions = 50) {
+  try {
+    console.log(`Collecting address poisoning data for wallet: ${walletAddress}`);
+
+    // Run the analysis
+    const result = await detectAddressPoisoning(walletAddress, numTransactions);
+
+    // Read existing data
+    const storageData = readData(ADDRESS_POISONING_FILE);
+
+    // Add new data
+    const newEntry = {
+      timestamp: Date.now(),
+      walletAddress,
+      numTransactions,
+      riskLevel: result.riskLevel,
+      riskScore: result.riskScore,
+      similarAddressesCount: result.similarAddresses.length,
+      poisoningAttemptsCount: result.addressPoisoningAttempts.length,
+      primaryAttackVector: result.primaryAttackVector || 'None',
+      suspiciousTransactionCount: result.suspiciousTransactionCount || 0
+    };
+
+    storageData.data.push(newEntry);
+    storageData.lastUpdated = new Date().toISOString();
+
+    // Write updated data
+    fs.writeFileSync(ADDRESS_POISONING_FILE, JSON.stringify(storageData));
+
+    console.log(`Address poisoning data collected for wallet: ${walletAddress}`);
+    return result;
+  } catch (error) {
+    console.error(`Error collecting address poisoning data: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Calculate address poisoning statistics
+ * @param {Array} data - Address poisoning data
+ * @returns {Object} Address poisoning statistics
+ */
+function calculateAddressPoisoningStats(data) {
+  // Default stats
+  const stats = {
+    totalWalletsAnalyzed: 0,
+    walletsWithPoisoningAttempts: 0,
+    poisoningAttemptsPercentage: 0,
+    totalPoisoningAttempts: 0,
+    averageRiskScore: 0,
+    riskDistribution: {
+      high: 0,
+      medium: 0,
+      low: 0,
+      none: 0
+    },
+    attackVectorDistribution: {}
+  };
+
+  if (!data || data.length === 0) {
+    return stats;
+  }
+
+  // Calculate stats
+  stats.totalWalletsAnalyzed = data.length;
+
+  // Count wallets with poisoning attempts
+  const walletsWithAttempts = data.filter(entry => entry.poisoningAttemptsCount > 0);
+  stats.walletsWithPoisoningAttempts = walletsWithAttempts.length;
+
+  // Calculate percentage
+  stats.poisoningAttemptsPercentage = stats.totalWalletsAnalyzed > 0
+    ? (stats.walletsWithPoisoningAttempts / stats.totalWalletsAnalyzed) * 100
+    : 0;
+
+  // Count total poisoning attempts
+  stats.totalPoisoningAttempts = data.reduce((sum, entry) => sum + entry.poisoningAttemptsCount, 0);
+
+  // Calculate average risk score
+  const totalRiskScore = data.reduce((sum, entry) => sum + entry.riskScore, 0);
+  stats.averageRiskScore = stats.totalWalletsAnalyzed > 0
+    ? totalRiskScore / stats.totalWalletsAnalyzed
+    : 0;
+
+  // Count risk levels
+  data.forEach(entry => {
+    if (entry.riskLevel === 'HIGH') {
+      stats.riskDistribution.high++;
+    } else if (entry.riskLevel === 'MEDIUM') {
+      stats.riskDistribution.medium++;
+    } else if (entry.riskLevel === 'LOW') {
+      stats.riskDistribution.low++;
+    } else {
+      stats.riskDistribution.none++;
+    }
+  });
+
+  // Count attack vectors
+  data.forEach(entry => {
+    if (entry.primaryAttackVector && entry.primaryAttackVector !== 'None') {
+      stats.attackVectorDistribution[entry.primaryAttackVector] =
+        (stats.attackVectorDistribution[entry.primaryAttackVector] || 0) + 1;
+    }
+  });
+
+  return stats;
+}
+
 module.exports = {
   initializeDataStorage,
   collectTokenAnalysisData,
   collectTransactionAnalysisData,
   collectWalletAnalysisData,
+  collectAddressPoisoningData,
   getDashboardStats,
   getTimeSeriesData
 };

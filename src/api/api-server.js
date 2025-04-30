@@ -23,6 +23,7 @@ const { analyzeTokenMint } = require('../analyzers/token-analyzer');
 const { analyzeBatchWallets } = require('../analyzers/batch-analyzer');
 const { analyzeTimeRange } = require('../analyzers/time-analyzer');
 const { analyzeMemo, analyzeMemoList, analyzeMemoText } = require('../analyzers/memo-analyzer');
+const { detectAddressPoisoning } = require('../analyzers/address-poisoning-analyzer.js');
 
 // Import dashboard API
 const dashboardRoutes = require('./dashboard-api');
@@ -225,6 +226,21 @@ const swaggerOptions = {
             memoText: {
               type: 'string',
               description: 'Memo text to analyze'
+            }
+          }
+        },
+        AddressPoisoningRequest: {
+          type: 'object',
+          required: ['walletAddress'],
+          properties: {
+            walletAddress: {
+              type: 'string',
+              description: 'Wallet address to analyze for address poisoning attempts'
+            },
+            numTransactions: {
+              type: 'integer',
+              description: 'Number of transactions to analyze (default: 50)',
+              default: 50
             }
           }
         },
@@ -1103,6 +1119,67 @@ app.post('/v1/api/memo-text', async (req, res) => {
     // Return the response
     res.json(createApiResponse(true, {
       memoText,
+      result,
+      logs
+    }));
+  } catch (error) {
+    res.status(500).json(createApiResponse(false, null, error.message));
+  }
+});
+
+/**
+ * @swagger
+ * /v1/api/address-poisoning:
+ *   post:
+ *     summary: Analyze a wallet for address poisoning attempts
+ *     description: Analyzes a Solana wallet to detect potential address poisoning attacks
+ *     tags:
+ *       - Address Poisoning
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AddressPoisoningRequest'
+ *           example:
+ *             walletAddress: "vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg"
+ *             numTransactions: 50
+ *     responses:
+ *       200:
+ *         description: Address poisoning analysis results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       400:
+ *         description: Invalid request parameters
+ *       429:
+ *         description: Too many requests
+ *       500:
+ *         description: Server error
+ */
+app.post('/v1/api/address-poisoning', async (req, res) => {
+  try {
+    const { walletAddress, numTransactions = 50 } = req.body;
+
+    if (!walletAddress) {
+      return res.status(400).json(createApiResponse(false, null, 'Wallet address is required'));
+    }
+
+    // Capture console output
+    const outputCapture = new OutputCapture();
+    outputCapture.start();
+
+    // Run the analysis
+    const result = await detectAddressPoisoning(walletAddress, numTransactions);
+
+    // Get captured logs
+    const logs = outputCapture.stop();
+
+    // Return the response
+    res.json(createApiResponse(true, {
+      walletAddress,
+      numTransactions,
       result,
       logs
     }));

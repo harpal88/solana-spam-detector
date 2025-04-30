@@ -15,6 +15,7 @@ const { analyzeTokenMint } = require('./src/analyzers/token-analyzer');
 const { analyzeBatchWallets } = require('./src/analyzers/batch-analyzer');
 const { analyzeTimeRange } = require('./src/analyzers/time-analyzer');
 const { analyzeMemo, analyzeMemoList, analyzeMemoText } = require('./src/analyzers/memo-analyzer');
+const { detectAddressPoisoning } = require(__dirname + '/src/analyzers/address-poisoning-analyzer.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -37,6 +38,7 @@ COMMANDS:
   batch     Analyze multiple wallet addresses
   time      Analyze transactions within a time range
   memo      Analyze a memo for scam indicators
+  poison    Analyze a wallet for address poisoning attempts
   help      Show this help message
 
 OPTIONS:
@@ -75,6 +77,10 @@ OPTIONS:
     text              Memo text to analyze
     file-path         Path to file containing memos (one per line)
 
+  poison <address> [num-transactions]
+    address           Wallet address to analyze for address poisoning
+    num-transactions  Number of transactions to analyze (default: 50)
+
 EXAMPLES:
   node index.js wallet vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg 2
   node index.js tokens vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg
@@ -86,6 +92,7 @@ EXAMPLES:
   node index.js time vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg "2025-01-01" "2025-12-31" 3
   node index.js memo "Claim your free airdrop at https://scam-site.com"
   node index.js memo ./data/memos.txt
+  node index.js poison vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg 10
 `);
 }
 
@@ -326,7 +333,21 @@ if (mode === 'wallet') {
       process.exit(1);
     }
   }
+} else if (mode === 'poison') {
+  if (args.length < 2) {
+    console.error('Error: Wallet address is required for address poisoning analysis mode');
+    process.exit(1);
+  }
+
+  const walletAddress = args[1];
+  const numTransactions = args.length > 2 ? parseInt(args[2], 10) : 50;
+
+  // Run the address poisoning detector
+  detectAddressPoisoning(walletAddress, numTransactions).catch(error => {
+    console.error('Error analyzing address poisoning:', error);
+    process.exit(1);
+  });
 } else {
-  console.error(`Error: Unknown mode '${mode}'. Valid modes are: wallet, tokens, tx, blocks, token, batch, time, memo`);
+  console.error(`Error: Unknown mode '${mode}'. Valid modes are: wallet, tokens, tx, blocks, token, batch, time, memo, poison`);
   process.exit(1);
 }
