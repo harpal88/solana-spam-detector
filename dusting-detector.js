@@ -18,6 +18,7 @@ try {
   console.error('Exiting...');
   process.exit(1);
 }
+import { HELIUS_API_KEY } from './config';
 
 const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 const HELIUS_API_URL = `https://api.helius.xyz/v0`;
