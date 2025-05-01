@@ -114,6 +114,11 @@ npm run dev
 
 Open your browser and navigate to:
 ```
+http://localhost:3000
+```
+
+The dashboard is also available at:
+```
 http://localhost:3000/dashboard
 ```
 

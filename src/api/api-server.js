@@ -1219,8 +1219,13 @@ app.post('/v1/api/address-poisoning', async (req, res) => {
 // Register dashboard routes
 app.use('/v1/api/dashboard', dashboardRoutes);
 
-// Dashboard route
+// Dashboard routes
 app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/dashboard/index.html'));
+});
+
+// Serve dashboard at root URL
+app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/dashboard/index.html'));
 });
 
@@ -1235,5 +1240,5 @@ app.listen(PORT, () => {
   const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
   console.log(`Solana Spam Detector API server running on port ${PORT}`);
   console.log(`API documentation available at ${baseUrl}/api-docs`);
-  console.log(`Dashboard available at ${baseUrl}/dashboard`);
+  console.log(`Dashboard available at ${baseUrl} (root URL) or ${baseUrl}/dashboard`);
 });

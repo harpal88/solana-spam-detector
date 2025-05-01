@@ -633,6 +633,12 @@ The dashboard provides visualization of spam and dusting attack patterns and tre
 Access the dashboard web interface at:
 
 ```
+http://localhost:3000
+```
+
+The dashboard is also available at:
+
+```
 http://localhost:3000/dashboard
 ```
 

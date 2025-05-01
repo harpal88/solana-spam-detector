@@ -56,7 +56,7 @@ The server will start on port 3000 by default. You can change this by setting th
 Once the server is running, you can access:
 
 - **Swagger API Documentation**: `http://localhost:3000/api-docs`
-- **Dashboard**: `http://localhost:3000/dashboard`
+- **Dashboard**: `http://localhost:3000` (or `http://localhost:3000/dashboard`)
 
 For detailed API documentation, see [API_DOCUMENTATION.md](API_DOCUMENTATION.md).
 
