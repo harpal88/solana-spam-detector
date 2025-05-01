@@ -3,14 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;">
+  <!-- For development, using a very permissive CSP -->
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline'; font-src * data:;">
   <title>Solana Spam Detector Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link rel="stylesheet" href="/dashboard/css/styles.css">
   <link rel="stylesheet" href="/dashboard/css/enhanced-styles.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <!-- Load Chart.js with defer to ensure it loads properly -->
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <!-- Fallback for Chart.js in case it doesn't load -->
+  <script defer src="/dashboard/js/chart-fallback.js"></script>
 </head>
 <body>
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -72,13 +76,28 @@
                 <button class="nav-link" id="wallet-tab" data-bs-toggle="tab" data-bs-target="#wallet-tab-pane" type="button" role="tab" aria-controls="wallet-tab-pane" aria-selected="false">Wallet Analysis</button>
               </li>
               <li class="nav-item" role="presentation">
+                <button class="nav-link" id="wallet-tokens-tab" data-bs-toggle="tab" data-bs-target="#wallet-tokens-tab-pane" type="button" role="tab" aria-controls="wallet-tokens-tab-pane" aria-selected="false">Wallet Tokens</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="block-range-tab" data-bs-toggle="tab" data-bs-target="#block-range-tab-pane" type="button" role="tab" aria-controls="block-range-tab-pane" aria-selected="false">Block Range</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="batch-tab" data-bs-toggle="tab" data-bs-target="#batch-tab-pane" type="button" role="tab" aria-controls="batch-tab-pane" aria-selected="false">Batch Analysis</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="time-range-tab" data-bs-toggle="tab" data-bs-target="#time-range-tab-pane" type="button" role="tab" aria-controls="time-range-tab-pane" aria-selected="false">Time Range</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="memo-tab" data-bs-toggle="tab" data-bs-target="#memo-tab-pane" type="button" role="tab" aria-controls="memo-tab-pane" aria-selected="false">Memo Analysis</button>
+              </li>
+              <li class="nav-item" role="presentation">
                 <button class="nav-link" id="address-poisoning-tab" data-bs-toggle="tab" data-bs-target="#address-poisoning-tab-pane" type="button" role="tab" aria-controls="address-poisoning-tab-pane" aria-selected="false">Address Poisoning</button>
               </li>
             </ul>
             <div class="tab-content p-3" id="analysisTabsContent">
               <!-- Token Analysis Form -->
               <div class="tab-pane fade show active" id="token-tab-pane" role="tabpanel" aria-labelledby="token-tab" tabindex="0">
-                <form id="tokenForm" onsubmit="event.preventDefault(); analyzeTokenDirect();">
+                <form id="tokenForm">
                   <div class="mb-3">
                     <label for="tokenMint" class="form-label">Token Mint Address</label>
                     <input type="text" class="form-control" id="tokenMint" required placeholder="e.g., EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">
@@ -97,117 +116,6 @@
                     </div>
                   </div>
                 </div>
-
-                <!-- Direct submission script -->
-                <script>
-                  function analyzeTokenDirect() {
-                    console.log('Direct token form submission');
-
-                    const tokenMint = document.getElementById('tokenMint').value;
-                    const maxTransactions = document.getElementById('tokenMaxTransactions').value || 50;
-
-                    if (!tokenMint) {
-                      alert('Token mint address is required');
-                      return;
-                    }
-
-                    // Show status message
-                    const statusMessages = document.getElementById('statusMessages');
-                    const statusText = document.getElementById('statusText');
-                    if (statusMessages && statusText) {
-                      statusText.textContent = `Analyzing token ${tokenMint}...`;
-                      statusMessages.classList.remove('d-none');
-
-                      const spinner = statusMessages.querySelector('.spinner-border');
-                      if (spinner) {
-                        spinner.classList.remove('d-none');
-                      }
-                    }
-
-                    // Show the results container
-                    const resultsContainer = document.getElementById('tokenResults');
-                    if (resultsContainer) {
-                      resultsContainer.classList.remove('d-none');
-                    }
-
-                    // Get the results content container
-                    const resultsContentContainer = document.getElementById('tokenResultsContent');
-                    if (resultsContentContainer) {
-                      // Show loading indicator
-                      resultsContentContainer.innerHTML = `
-                        <div class="d-flex justify-content-center my-5">
-                          <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                          </div>
-                        </div>
-                      `;
-
-                      // Simulate API call
-                      setTimeout(function() {
-                        // Hide status message
-                        if (statusMessages) {
-                          const spinner = statusMessages.querySelector('.spinner-border');
-                          if (spinner) {
-                            spinner.classList.add('d-none');
-                          }
-                          statusText.textContent = 'Token analysis complete!';
-
-                          setTimeout(function() {
-                            statusMessages.classList.add('d-none');
-                          }, 3000);
-                        }
-
-                        // Show results
-                        resultsContentContainer.innerHTML = `
-                          <div class="result-card success">
-                            <h5>Token Information</h5>
-                            <div class="mb-3">
-                              <strong>Token Mint:</strong> ${tokenMint}<br>
-                              <strong>Name:</strong> Test Token<br>
-                              <strong>Symbol:</strong> TEST<br>
-                              <strong>Decimals:</strong> 9<br>
-                              <strong>Total Supply:</strong> 1,000,000,000<br>
-                              <strong>Status:</strong>
-                              <span class="badge bg-warning text-dark">Suspicious</span>
-                            </div>
-                          </div>
-
-                          <div class="result-card warning">
-                            <h5>Suspicious Indicators</h5>
-                            <ul class="mb-0">
-                              <li>Low transaction volume</li>
-                              <li>Recently created token</li>
-                            </ul>
-                          </div>
-
-                          <div class="result-card">
-                            <h5>Recent Transactions</h5>
-                            <div class="table-responsive">
-                              <table class="table table-sm table-striped">
-                                <thead>
-                                  <tr>
-                                    <th>Signature</th>
-                                    <th>Type</th>
-                                    <th>Amount</th>
-                                    <th>Timestamp</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  <tr>
-                                    <td><small>4jzQ...AgDf</small></td>
-                                    <td>TRANSFER</td>
-                                    <td>0.000001</td>
-                                    <td><small>${new Date().toLocaleString()}</small></td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        `;
-                      }, 1500);
-                    }
-                  }
-                </script>
               </div>
 
               <!-- Transaction Analysis Form -->
@@ -219,6 +127,14 @@
                   </div>
                   <button type="submit" class="btn btn-primary">Analyze Transaction</button>
                 </form>
+                <div id="transactionResults" class="mt-4 d-none">
+                  <h5>Analysis Results</h5>
+                  <div class="card">
+                    <div class="card-body" id="transactionResultsContent">
+                      <!-- Results will be displayed here -->
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Wallet Analysis Form -->
@@ -234,6 +150,141 @@
                   </div>
                   <button type="submit" class="btn btn-primary">Analyze Wallet</button>
                 </form>
+                <div id="walletResults" class="mt-4 d-none">
+                  <h5>Analysis Results</h5>
+                  <div class="card">
+                    <div class="card-body" id="walletResultsContent">
+                      <!-- Results will be displayed here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Wallet Tokens Analysis Form -->
+              <div class="tab-pane fade" id="wallet-tokens-tab-pane" role="tabpanel" aria-labelledby="wallet-tokens-tab" tabindex="0">
+                <form id="walletTokensForm">
+                  <div class="mb-3">
+                    <label for="walletTokensAddress" class="form-label">Wallet Address</label>
+                    <input type="text" class="form-control" id="walletTokensAddress" required placeholder="e.g., vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg">
+                  </div>
+                  <div class="mb-3">
+                    <label for="walletTokensNumTransactions" class="form-label">Number of Transactions (Optional)</label>
+                    <input type="number" class="form-control" id="walletTokensNumTransactions" value="0" min="0" max="50">
+                    <small class="form-text text-muted">Set to 0 to only analyze tokens in wallet without transaction analysis</small>
+                  </div>
+                  <button type="submit" class="btn btn-primary">Analyze Wallet Tokens</button>
+                </form>
+                <div id="walletTokensResults" class="mt-4 d-none">
+                  <h5>Analysis Results</h5>
+                  <div class="card">
+                    <div class="card-body" id="walletTokensResultsContent">
+                      <!-- Results will be displayed here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Block Range Analysis Form -->
+              <div class="tab-pane fade" id="block-range-tab-pane" role="tabpanel" aria-labelledby="block-range-tab" tabindex="0">
+                <form id="blockRangeForm">
+                  <div class="mb-3">
+                    <label for="blockStartSlot" class="form-label">Start Slot</label>
+                    <input type="number" class="form-control" id="blockStartSlot" required placeholder="e.g., 150000000">
+                  </div>
+                  <div class="mb-3">
+                    <label for="blockEndSlot" class="form-label">End Slot</label>
+                    <input type="number" class="form-control" id="blockEndSlot" required placeholder="e.g., 150000010">
+                  </div>
+                  <div class="mb-3">
+                    <label for="blockMaxTransactions" class="form-label">Max Transactions</label>
+                    <input type="number" class="form-control" id="blockMaxTransactions" value="100" min="1" max="500">
+                  </div>
+                  <button type="submit" class="btn btn-primary">Analyze Block Range</button>
+                </form>
+                <div id="blockRangeResults" class="mt-4 d-none">
+                  <h5>Analysis Results</h5>
+                  <div class="card">
+                    <div class="card-body" id="blockRangeResultsContent">
+                      <!-- Results will be displayed here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Batch Analysis Form -->
+              <div class="tab-pane fade" id="batch-tab-pane" role="tabpanel" aria-labelledby="batch-tab" tabindex="0">
+                <form id="batchForm">
+                  <div class="mb-3">
+                    <label for="batchWalletAddresses" class="form-label">Wallet Addresses</label>
+                    <textarea class="form-control" id="batchWalletAddresses" rows="4" required placeholder="Enter comma-separated wallet addresses or one address per line"></textarea>
+                    <small class="form-text text-muted">Enter multiple wallet addresses separated by commas or line breaks</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="batchNumTransactions" class="form-label">Transactions Per Wallet</label>
+                    <input type="number" class="form-control" id="batchNumTransactions" value="10" min="1" max="50">
+                  </div>
+                  <button type="submit" class="btn btn-primary">Analyze Batch Wallets</button>
+                </form>
+                <div id="batchResults" class="mt-4 d-none">
+                  <h5>Analysis Results</h5>
+                  <div class="card">
+                    <div class="card-body" id="batchResultsContent">
+                      <!-- Results will be displayed here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Time Range Analysis Form -->
+              <div class="tab-pane fade" id="time-range-tab-pane" role="tabpanel" aria-labelledby="time-range-tab" tabindex="0">
+                <form id="timeRangeForm">
+                  <div class="mb-3">
+                    <label for="timeRangeWalletAddress" class="form-label">Wallet Address</label>
+                    <input type="text" class="form-control" id="timeRangeWalletAddress" required placeholder="e.g., vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg">
+                  </div>
+                  <div class="mb-3">
+                    <label for="timeRangeStartTime" class="form-label">Start Time</label>
+                    <input type="datetime-local" class="form-control" id="timeRangeStartTime" required>
+                    <small class="form-text text-muted">Enter date and time in your local timezone</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="timeRangeEndTime" class="form-label">End Time</label>
+                    <input type="datetime-local" class="form-control" id="timeRangeEndTime" required>
+                    <small class="form-text text-muted">Enter date and time in your local timezone</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="timeRangeMaxTransactions" class="form-label">Max Transactions</label>
+                    <input type="number" class="form-control" id="timeRangeMaxTransactions" value="50" min="1" max="200">
+                  </div>
+                  <button type="submit" class="btn btn-primary">Analyze Time Range</button>
+                </form>
+                <div id="timeRangeResults" class="mt-4 d-none">
+                  <h5>Analysis Results</h5>
+                  <div class="card">
+                    <div class="card-body" id="timeRangeResultsContent">
+                      <!-- Results will be displayed here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Memo Analysis Form -->
+              <div class="tab-pane fade" id="memo-tab-pane" role="tabpanel" aria-labelledby="memo-tab" tabindex="0">
+                <form id="memoForm">
+                  <div class="mb-3">
+                    <label for="memoText" class="form-label">Memo Text</label>
+                    <textarea class="form-control" id="memoText" rows="4" required placeholder="Enter memo text to analyze for scam indicators"></textarea>
+                  </div>
+                  <button type="submit" class="btn btn-primary">Analyze Memo</button>
+                </form>
+                <div id="memoResults" class="mt-4 d-none">
+                  <h5>Analysis Results</h5>
+                  <div class="card">
+                    <div class="card-body" id="memoResultsContent">
+                      <!-- Results will be displayed here -->
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Address Poisoning Analysis Form -->
@@ -249,6 +300,14 @@
                   </div>
                   <button type="submit" class="btn btn-primary">Analyze Address Poisoning</button>
                 </form>
+                <div id="addressPoisoningResults" class="mt-4 d-none">
+                  <h5>Analysis Results</h5>
+                  <div class="card">
+                    <div class="card-body" id="addressPoisoningResultsContent">
+                      <!-- Results will be displayed here -->
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -263,21 +322,6 @@
           <span id="statusText">Loading dashboard data...</span>
           <div class="spinner-border spinner-border-sm ms-2" role="status">
             <span class="visually-hidden">Loading...</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Debug Output (hidden by default, can be shown for troubleshooting) -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="card">
-          <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Debug Output</h5>
-            <button class="btn btn-sm btn-outline-light" id="clearDebug">Clear</button>
-          </div>
-          <div class="card-body p-0">
-            <div id="debugOutput" style="height: 200px; overflow-y: auto; padding: 10px; font-family: monospace; font-size: 12px;"></div>
           </div>
         </div>
       </div>
@@ -395,131 +439,36 @@
       </div>
     </div>
 
+    <!-- Debug Panel (hidden by default) -->
+    <div class="row mb-4 d-none" id="debugPanel">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Debug Console</h5>
+            <button type="button" class="btn btn-sm btn-outline-light" id="clearDebug">Clear</button>
+          </div>
+          <div class="card-body bg-dark text-light">
+            <div id="debugOutput" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Footer -->
     <footer class="text-center text-muted mb-4">
       <p>Solana Spam Detector Dashboard | <a href="https://github.com/harpal88/solana-spam-detector" target="_blank">GitHub</a></p>
       <p class="small">Last updated: <span id="lastUpdated">-</span></p>
+      <p class="small"><a href="#" id="toggleDebug">Toggle Debug Panel</a></p>
     </footer>
   </div>
 
   <!-- Bootstrap Bundle with Popper -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
   <!-- Fallback Tabs Script (in case Bootstrap JS fails to load) -->
-  <script src="/dashboard/js/fallback-tabs.js"></script>
+  <script defer src="/dashboard/js/fallback-tabs.js"></script>
 
-  <!-- Enhanced Dashboard Script -->
-  <script src="/dashboard/js/enhanced-dashboard.js"></script>
-
-  <!-- Inline script to ensure dashboard is initialized -->
-  <script>
-    // This script ensures the dashboard is initialized even if there are issues with the external scripts
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('Inline script executed');
-
-      // Check if the dashboard has been initialized
-      setTimeout(function() {
-        const debugOutput = document.getElementById('debugOutput');
-        if (debugOutput && debugOutput.children.length === 0) {
-          console.log('Dashboard not initialized, adding fallback initialization');
-
-          // Add a message to the debug output
-          const message = document.createElement('div');
-          message.className = 'text-danger';
-          message.textContent = 'Dashboard not initialized properly. Using fallback initialization.';
-          debugOutput.appendChild(message);
-
-          // Add test buttons
-          const testTokenBtn = document.createElement('button');
-          testTokenBtn.className = 'btn btn-sm btn-primary mt-2';
-          testTokenBtn.textContent = 'Test Token Analysis';
-          testTokenBtn.onclick = function() {
-            console.log('Running test token analysis from inline script');
-
-            // Show status message
-            const statusMessages = document.getElementById('statusMessages');
-            const statusText = document.getElementById('statusText');
-            if (statusMessages && statusText) {
-              statusText.textContent = 'Analyzing token...';
-              statusMessages.classList.remove('d-none');
-
-              const spinner = statusMessages.querySelector('.spinner-border');
-              if (spinner) {
-                spinner.classList.remove('d-none');
-              }
-            }
-
-            // Show the results container
-            const resultsContainer = document.getElementById('tokenResults');
-            if (resultsContainer) {
-              resultsContainer.classList.remove('d-none');
-            }
-
-            // Get the results content container
-            const resultsContentContainer = document.getElementById('tokenResultsContent');
-            if (resultsContentContainer) {
-              // Show loading indicator
-              resultsContentContainer.innerHTML = `
-                <div class="d-flex justify-content-center my-5">
-                  <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              `;
-
-              // Simulate API call
-              setTimeout(function() {
-                // Hide status message
-                if (statusMessages) {
-                  statusMessages.classList.add('d-none');
-                }
-
-                // Show results
-                resultsContentContainer.innerHTML = `
-                  <div class="result-card success">
-                    <h5>Token Information</h5>
-                    <div class="mb-3">
-                      <strong>Token Mint:</strong> EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v<br>
-                      <strong>Name:</strong> USD Coin<br>
-                      <strong>Symbol:</strong> USDC<br>
-                      <strong>Decimals:</strong> 6<br>
-                      <strong>Total Supply:</strong> 5,000,000,000<br>
-                      <strong>Status:</strong>
-                      <span class="badge bg-success">Normal</span>
-                    </div>
-                  </div>
-
-                  <div class="result-card">
-                    <h5>Recent Transactions</h5>
-                    <div class="table-responsive">
-                      <table class="table table-sm table-striped">
-                        <thead>
-                          <tr>
-                            <th>Signature</th>
-                            <th>Type</th>
-                            <th>Amount</th>
-                            <th>Timestamp</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td><small>4jzQ...AgDf</small></td>
-                            <td>TRANSFER</td>
-                            <td>100.00</td>
-                            <td><small>${new Date().toLocaleString()}</small></td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                `;
-              }, 1500);
-            }
-          };
-          debugOutput.parentNode.appendChild(testTokenBtn);
-        }
-      }, 3000);
-    });
-  </script>
+  <!-- Enhanced Dashboard Script - Load after other scripts -->
+  <script defer src="/dashboard/js/enhanced-dashboard.js"></script>
 </body>
 </html>

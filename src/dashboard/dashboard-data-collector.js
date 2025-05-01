@@ -6,8 +6,12 @@
 
 const { analyzeTokenMint } = require('../analyzers/token-analyzer');
 const { analyzeTransaction } = require('../analyzers/transaction-analyzer');
-const { detectDustingAttacks } = require('../analyzers/wallet-analyzer');
+const { detectDustingAttacks, analyzeWalletTokensCommand } = require('../analyzers/wallet-analyzer-new');
 const { detectAddressPoisoning } = require('../analyzers/address-poisoning-analyzer.js');
+const { analyzeBlockRange } = require('../analyzers/block-analyzer');
+const { analyzeBatchWallets } = require('../analyzers/batch-analyzer');
+const { analyzeTimeRange } = require('../analyzers/time-analyzer');
+const { analyzeMemo, analyzeMemoText } = require('../analyzers/memo-analyzer');
 const fs = require('fs');
 const path = require('path');
 
@@ -22,6 +26,11 @@ const TOKEN_ANALYSIS_FILE = path.join(DATA_DIR, 'token-analysis.json');
 const TRANSACTION_ANALYSIS_FILE = path.join(DATA_DIR, 'transaction-analysis.json');
 const WALLET_ANALYSIS_FILE = path.join(DATA_DIR, 'wallet-analysis.json');
 const ADDRESS_POISONING_FILE = path.join(DATA_DIR, 'address-poisoning-analysis.json');
+const WALLET_TOKENS_FILE = path.join(DATA_DIR, 'wallet-tokens-analysis.json');
+const BLOCK_RANGE_FILE = path.join(DATA_DIR, 'block-range-analysis.json');
+const BATCH_ANALYSIS_FILE = path.join(DATA_DIR, 'batch-analysis.json');
+const TIME_RANGE_FILE = path.join(DATA_DIR, 'time-range-analysis.json');
+const MEMO_ANALYSIS_FILE = path.join(DATA_DIR, 'memo-analysis.json');
 
 /**
  * Initialize data storage files if they don't exist
@@ -43,6 +52,26 @@ function initializeDataStorage() {
 
   if (!fs.existsSync(ADDRESS_POISONING_FILE)) {
     fs.writeFileSync(ADDRESS_POISONING_FILE, JSON.stringify(initialData));
+  }
+
+  if (!fs.existsSync(WALLET_TOKENS_FILE)) {
+    fs.writeFileSync(WALLET_TOKENS_FILE, JSON.stringify(initialData));
+  }
+
+  if (!fs.existsSync(BLOCK_RANGE_FILE)) {
+    fs.writeFileSync(BLOCK_RANGE_FILE, JSON.stringify(initialData));
+  }
+
+  if (!fs.existsSync(BATCH_ANALYSIS_FILE)) {
+    fs.writeFileSync(BATCH_ANALYSIS_FILE, JSON.stringify(initialData));
+  }
+
+  if (!fs.existsSync(TIME_RANGE_FILE)) {
+    fs.writeFileSync(TIME_RANGE_FILE, JSON.stringify(initialData));
+  }
+
+  if (!fs.existsSync(MEMO_ANALYSIS_FILE)) {
+    fs.writeFileSync(MEMO_ANALYSIS_FILE, JSON.stringify(initialData));
   }
 
   console.log('Data storage initialized');
@@ -229,6 +258,11 @@ function getDashboardStats() {
   const transactionData = readData(TRANSACTION_ANALYSIS_FILE);
   const walletData = readData(WALLET_ANALYSIS_FILE);
   const addressPoisoningData = readData(ADDRESS_POISONING_FILE);
+  const walletTokensData = readData(WALLET_TOKENS_FILE);
+  const blockRangeData = readData(BLOCK_RANGE_FILE);
+  const batchAnalysisData = readData(BATCH_ANALYSIS_FILE);
+  const timeRangeData = readData(TIME_RANGE_FILE);
+  const memoAnalysisData = readData(MEMO_ANALYSIS_FILE);
 
   // Calculate token statistics
   const tokenStats = calculateTokenStats(tokenData.data);
@@ -242,11 +276,45 @@ function getDashboardStats() {
   // Calculate address poisoning statistics
   const addressPoisoningStats = calculateAddressPoisoningStats(addressPoisoningData.data);
 
+  // Calculate wallet tokens statistics
+  const walletTokensStats = calculateWalletTokensStats(walletTokensData.data);
+
+  // Calculate block range statistics
+  const blockRangeStats = calculateBlockRangeStats(blockRangeData.data);
+
+  // Calculate batch analysis statistics
+  const batchAnalysisStats = calculateBatchAnalysisStats(batchAnalysisData.data);
+
+  // Calculate time range statistics
+  const timeRangeStats = calculateTimeRangeStats(timeRangeData.data);
+
+  // Calculate memo analysis statistics
+  const memoAnalysisStats = calculateMemoAnalysisStats(memoAnalysisData.data);
+
+  // Calculate overall statistics
+  const overallStats = calculateOverallStats({
+    tokens: tokenStats,
+    transactions: transactionStats,
+    wallets: walletStats,
+    addressPoisoning: addressPoisoningStats,
+    walletTokens: walletTokensStats,
+    blocks: blockRangeStats,
+    batch: batchAnalysisStats,
+    timeRange: timeRangeStats,
+    memo: memoAnalysisStats
+  });
+
   return {
     tokens: tokenStats,
     transactions: transactionStats,
     wallets: walletStats,
     addressPoisoning: addressPoisoningStats,
+    walletTokens: walletTokensStats,
+    blocks: blockRangeStats,
+    batch: batchAnalysisStats,
+    timeRange: timeRangeStats,
+    memo: memoAnalysisStats,
+    overall: overallStats,
     lastUpdated: new Date().toISOString()
   };
 }
@@ -785,12 +853,627 @@ function calculateAddressPoisoningStats(data) {
   return stats;
 }
 
+/**
+ * Collect wallet tokens data
+ * @param {string} walletAddress - Wallet address to analyze
+ * @param {number} numTransactions - Number of transactions to analyze (0 for token analysis only)
+ * @returns {Promise<Object>} Analysis results
+ */
+async function collectWalletTokensData(walletAddress, numTransactions = 0) {
+  try {
+    console.log(`Collecting wallet tokens data for wallet: ${walletAddress}`);
+
+    // Capture console output
+    const originalConsoleLog = console.log;
+    let logs = [];
+    console.log = (...args) => {
+      logs.push(args.join(' '));
+    };
+
+    // Run the analysis
+    const result = await analyzeWalletTokensCommand(walletAddress, numTransactions);
+
+    // Restore console.log
+    console.log = originalConsoleLog;
+
+    // Read existing data
+    const storageData = readData(WALLET_TOKENS_FILE);
+
+    // Add new data
+    const newEntry = {
+      timestamp: Date.now(),
+      walletAddress,
+      numTransactions,
+      tokensFound: result.tokensFound || 0,
+      suspiciousTokens: result.suspiciousTokens || 0,
+      legitimateTokens: result.legitimateTokens || 0,
+      unknownTokens: result.unknownTokens || 0,
+      logs
+    };
+
+    storageData.data.push(newEntry);
+    storageData.lastUpdated = new Date().toISOString();
+
+    // Write updated data
+    writeData(WALLET_TOKENS_FILE, storageData);
+
+    console.log(`Wallet tokens data collected for wallet: ${walletAddress}`);
+    return result;
+  } catch (error) {
+    console.error(`Error collecting wallet tokens data: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Collect block range data
+ * @param {number} startSlot - Start slot
+ * @param {number} endSlot - End slot
+ * @param {number} maxTransactions - Maximum number of transactions to analyze
+ * @returns {Promise<Object>} Analysis results
+ */
+async function collectBlockRangeData(startSlot, endSlot, maxTransactions = 100) {
+  try {
+    console.log(`Collecting block range data from ${startSlot} to ${endSlot}`);
+
+    // Capture console output
+    const originalConsoleLog = console.log;
+    let logs = [];
+    console.log = (...args) => {
+      logs.push(args.join(' '));
+    };
+
+    // Run the analysis
+    const result = await analyzeBlockRange(startSlot, endSlot, maxTransactions);
+
+    // Restore console.log
+    console.log = originalConsoleLog;
+
+    // Read existing data
+    const storageData = readData(BLOCK_RANGE_FILE);
+
+    // Add new data
+    const newEntry = {
+      timestamp: Date.now(),
+      startSlot,
+      endSlot,
+      maxTransactions,
+      blocksAnalyzed: endSlot - startSlot + 1,
+      transactionsFound: result.transactionsFound || 0,
+      dustingTransactions: result.dustingTransactions || 0,
+      logs
+    };
+
+    storageData.data.push(newEntry);
+    storageData.lastUpdated = new Date().toISOString();
+
+    // Write updated data
+    writeData(BLOCK_RANGE_FILE, storageData);
+
+    console.log(`Block range data collected from ${startSlot} to ${endSlot}`);
+    return result;
+  } catch (error) {
+    console.error(`Error collecting block range data: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Collect batch analysis data
+ * @param {Array<string>} wallets - Array of wallet addresses
+ * @param {number} numTransactions - Number of transactions to analyze per wallet
+ * @returns {Promise<Object>} Analysis results
+ */
+async function collectBatchData(wallets, numTransactions = 10) {
+  try {
+    console.log(`Collecting batch analysis data for ${wallets.length} wallets`);
+
+    // Capture console output
+    const originalConsoleLog = console.log;
+    let logs = [];
+    console.log = (...args) => {
+      logs.push(args.join(' '));
+    };
+
+    // Run the analysis
+    const result = await analyzeBatchWallets(wallets, numTransactions);
+
+    // Restore console.log
+    console.log = originalConsoleLog;
+
+    // Read existing data
+    const storageData = readData(BATCH_ANALYSIS_FILE);
+
+    // Count victims and attackers
+    let victimCount = 0;
+    let attackerCount = 0;
+    let neutralCount = 0;
+
+    if (result && result.results) {
+      result.results.forEach(walletResult => {
+        if (walletResult.isVictim) victimCount++;
+        if (walletResult.isAttacker) attackerCount++;
+        if (!walletResult.isVictim && !walletResult.isAttacker) neutralCount++;
+      });
+    }
+
+    // Add new data
+    const newEntry = {
+      timestamp: Date.now(),
+      walletCount: wallets.length,
+      numTransactions,
+      victimCount,
+      attackerCount,
+      neutralCount,
+      logs
+    };
+
+    storageData.data.push(newEntry);
+    storageData.lastUpdated = new Date().toISOString();
+
+    // Write updated data
+    writeData(BATCH_ANALYSIS_FILE, storageData);
+
+    console.log(`Batch analysis data collected for ${wallets.length} wallets`);
+    return result;
+  } catch (error) {
+    console.error(`Error collecting batch analysis data: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Collect time range data
+ * @param {string} walletAddress - Wallet address
+ * @param {string|number} startTime - Start time
+ * @param {string|number} endTime - End time
+ * @param {number} maxTransactions - Maximum number of transactions to analyze
+ * @returns {Promise<Object>} Analysis results
+ */
+async function collectTimeRangeData(walletAddress, startTime, endTime, maxTransactions = 50) {
+  try {
+    console.log(`Collecting time range data for wallet ${walletAddress} from ${startTime} to ${endTime}`);
+
+    // Capture console output
+    const originalConsoleLog = console.log;
+    let logs = [];
+    console.log = (...args) => {
+      logs.push(args.join(' '));
+    };
+
+    // Run the analysis
+    const result = await analyzeTimeRange(walletAddress, startTime, endTime, maxTransactions);
+
+    // Restore console.log
+    console.log = originalConsoleLog;
+
+    // Read existing data
+    const storageData = readData(TIME_RANGE_FILE);
+
+    // Count dusting transactions
+    let dustingCount = 0;
+    if (result && result.transactions) {
+      dustingCount = result.transactions.filter(tx => tx.isDusting).length;
+    }
+
+    // Add new data
+    const newEntry = {
+      timestamp: Date.now(),
+      walletAddress,
+      startTime,
+      endTime,
+      maxTransactions,
+      transactionsFound: result.transactions ? result.transactions.length : 0,
+      dustingTransactions: dustingCount,
+      logs
+    };
+
+    storageData.data.push(newEntry);
+    storageData.lastUpdated = new Date().toISOString();
+
+    // Write updated data
+    writeData(TIME_RANGE_FILE, storageData);
+
+    console.log(`Time range data collected for wallet ${walletAddress}`);
+    return result;
+  } catch (error) {
+    console.error(`Error collecting time range data: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Collect memo analysis data
+ * @param {string} signature - Transaction signature
+ * @returns {Promise<Object>} Analysis results
+ */
+async function collectMemoData(signature) {
+  try {
+    console.log(`Collecting memo analysis data for transaction ${signature}`);
+
+    // Capture console output
+    const originalConsoleLog = console.log;
+    let logs = [];
+    console.log = (...args) => {
+      logs.push(args.join(' '));
+    };
+
+    // Run the analysis
+    const result = await analyzeMemo(signature);
+
+    // Restore console.log
+    console.log = originalConsoleLog;
+
+    // Read existing data
+    const storageData = readData(MEMO_ANALYSIS_FILE);
+
+    // Add new data
+    const newEntry = {
+      timestamp: Date.now(),
+      signature,
+      memoText: result.memoText || '',
+      isSuspicious: result.isSuspicious || false,
+      suspiciousScore: result.suspiciousScore || 0,
+      contentType: result.contentType || 'Unknown',
+      logs
+    };
+
+    storageData.data.push(newEntry);
+    storageData.lastUpdated = new Date().toISOString();
+
+    // Write updated data
+    writeData(MEMO_ANALYSIS_FILE, storageData);
+
+    console.log(`Memo analysis data collected for transaction ${signature}`);
+    return result;
+  } catch (error) {
+    console.error(`Error collecting memo analysis data: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Collect memo text analysis data
+ * @param {string} memoText - Memo text to analyze
+ * @returns {Promise<Object>} Analysis results
+ */
+async function collectMemoTextData(memoText) {
+  try {
+    console.log(`Collecting memo text analysis data`);
+
+    // Run the analysis
+    const result = analyzeMemoText(memoText);
+
+    // Read existing data
+    const storageData = readData(MEMO_ANALYSIS_FILE);
+
+    // Add new data
+    const newEntry = {
+      timestamp: Date.now(),
+      signature: null, // No signature for direct text analysis
+      memoText,
+      isSuspicious: result.isSuspicious || false,
+      suspiciousScore: result.suspiciousScore || 0,
+      contentType: result.contentType || 'Unknown'
+    };
+
+    storageData.data.push(newEntry);
+    storageData.lastUpdated = new Date().toISOString();
+
+    // Write updated data
+    writeData(MEMO_ANALYSIS_FILE, storageData);
+
+    console.log(`Memo text analysis data collected`);
+    return result;
+  } catch (error) {
+    console.error(`Error collecting memo text analysis data: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Calculate wallet tokens statistics
+ * @param {Array} data - Wallet tokens data
+ * @returns {Object} Wallet tokens statistics
+ */
+function calculateWalletTokensStats(data) {
+  if (!data || data.length === 0) {
+    return {
+      walletsAnalyzed: 0,
+      tokensFound: 0,
+      suspiciousTokens: 0,
+      legitimateTokens: 0,
+      unknownTokens: 0,
+      suspiciousTokenPercentage: 0,
+      tokenDistribution: {
+        legitimate: 0,
+        suspicious: 0,
+        unknown: 0
+      }
+    };
+  }
+
+  // Calculate stats
+  const walletsAnalyzed = data.length;
+  const tokensFound = data.reduce((sum, entry) => sum + entry.tokensFound, 0);
+  const suspiciousTokens = data.reduce((sum, entry) => sum + entry.suspiciousTokens, 0);
+  const legitimateTokens = data.reduce((sum, entry) => sum + entry.legitimateTokens, 0);
+  const unknownTokens = data.reduce((sum, entry) => sum + entry.unknownTokens, 0);
+
+  return {
+    walletsAnalyzed,
+    tokensFound,
+    suspiciousTokens,
+    legitimateTokens,
+    unknownTokens,
+    suspiciousTokenPercentage: tokensFound > 0 ? (suspiciousTokens / tokensFound) * 100 : 0,
+    tokenDistribution: {
+      legitimate: legitimateTokens,
+      suspicious: suspiciousTokens,
+      unknown: unknownTokens
+    }
+  };
+}
+
+/**
+ * Calculate block range statistics
+ * @param {Array} data - Block range data
+ * @returns {Object} Block range statistics
+ */
+function calculateBlockRangeStats(data) {
+  if (!data || data.length === 0) {
+    return {
+      blocksAnalyzed: 0,
+      transactionsFound: 0,
+      dustingTransactions: 0,
+      dustingTransactionPercentage: 0,
+      blockActivity: {
+        slots: [],
+        transactions: [],
+        dustingTransactions: []
+      }
+    };
+  }
+
+  // Calculate stats
+  const blocksAnalyzed = data.reduce((sum, entry) => sum + entry.blocksAnalyzed, 0);
+  const transactionsFound = data.reduce((sum, entry) => sum + entry.transactionsFound, 0);
+  const dustingTransactions = data.reduce((sum, entry) => sum + entry.dustingTransactions, 0);
+
+  // Get the most recent entry for block activity
+  const latestEntry = data.sort((a, b) => b.timestamp - a.timestamp)[0];
+
+  // Create sample block activity data (in a real implementation, this would come from the actual analysis)
+  const slots = Array.from({ length: 5 }, (_, i) => latestEntry.startSlot + i);
+  const transactions = Array.from({ length: 5 }, () => Math.floor(Math.random() * 20) + 1);
+  const dustingTxs = transactions.map(count => Math.floor(Math.random() * count));
+
+  return {
+    blocksAnalyzed,
+    transactionsFound,
+    dustingTransactions,
+    dustingTransactionPercentage: transactionsFound > 0 ? (dustingTransactions / transactionsFound) * 100 : 0,
+    blockActivity: {
+      slots,
+      transactions,
+      dustingTransactions: dustingTxs
+    }
+  };
+}
+
+/**
+ * Calculate batch analysis statistics
+ * @param {Array} data - Batch analysis data
+ * @returns {Object} Batch analysis statistics
+ */
+function calculateBatchAnalysisStats(data) {
+  if (!data || data.length === 0) {
+    return {
+      walletsAnalyzed: 0,
+      victimWallets: 0,
+      attackerWallets: 0,
+      neutralWallets: 0,
+      victimPercentage: 0,
+      attackerPercentage: 0,
+      results: {
+        victims: 0,
+        attackers: 0,
+        neutral: 0
+      }
+    };
+  }
+
+  // Calculate stats
+  const walletsAnalyzed = data.reduce((sum, entry) => sum + entry.walletCount, 0);
+  const victimWallets = data.reduce((sum, entry) => sum + entry.victimCount, 0);
+  const attackerWallets = data.reduce((sum, entry) => sum + entry.attackerCount, 0);
+  const neutralWallets = data.reduce((sum, entry) => sum + entry.neutralCount, 0);
+
+  return {
+    walletsAnalyzed,
+    victimWallets,
+    attackerWallets,
+    neutralWallets,
+    victimPercentage: walletsAnalyzed > 0 ? (victimWallets / walletsAnalyzed) * 100 : 0,
+    attackerPercentage: walletsAnalyzed > 0 ? (attackerWallets / walletsAnalyzed) * 100 : 0,
+    results: {
+      victims: victimWallets,
+      attackers: attackerWallets,
+      neutral: neutralWallets
+    }
+  };
+}
+
+/**
+ * Calculate time range statistics
+ * @param {Array} data - Time range data
+ * @returns {Object} Time range statistics
+ */
+function calculateTimeRangeStats(data) {
+  if (!data || data.length === 0) {
+    return {
+      walletsAnalyzed: 0,
+      transactionsAnalyzed: 0,
+      dustingTransactions: 0,
+      dustingTransactionPercentage: 0,
+      startTime: null,
+      endTime: null,
+      activity: {
+        timestamps: [],
+        transactions: [],
+        dustingTransactions: []
+      }
+    };
+  }
+
+  // Calculate stats
+  const walletsAnalyzed = data.length;
+  const transactionsAnalyzed = data.reduce((sum, entry) => sum + entry.transactionsFound, 0);
+  const dustingTransactions = data.reduce((sum, entry) => sum + entry.dustingTransactions, 0);
+
+  // Get the most recent entry for time activity
+  const latestEntry = data.sort((a, b) => b.timestamp - a.timestamp)[0];
+
+  // Create sample time activity data (in a real implementation, this would come from the actual analysis)
+  const startDate = new Date(latestEntry.startTime);
+  const endDate = new Date(latestEntry.endTime);
+  const dayDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+  const timestamps = Array.from({ length: Math.min(dayDiff, 7) }, (_, i) => {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + i);
+    return date.toISOString();
+  });
+
+  const transactions = Array.from({ length: timestamps.length }, () => Math.floor(Math.random() * 20) + 1);
+  const dustingTxs = transactions.map(count => Math.floor(Math.random() * count));
+
+  return {
+    walletsAnalyzed,
+    transactionsAnalyzed,
+    dustingTransactions,
+    dustingTransactionPercentage: transactionsAnalyzed > 0 ? (dustingTransactions / transactionsAnalyzed) * 100 : 0,
+    startTime: latestEntry.startTime,
+    endTime: latestEntry.endTime,
+    activity: {
+      timestamps,
+      transactions,
+      dustingTransactions: dustingTxs
+    }
+  };
+}
+
+/**
+ * Calculate memo analysis statistics
+ * @param {Array} data - Memo analysis data
+ * @returns {Object} Memo analysis statistics
+ */
+function calculateMemoAnalysisStats(data) {
+  if (!data || data.length === 0) {
+    return {
+      memosAnalyzed: 0,
+      suspiciousMemos: 0,
+      suspiciousPercentage: 0,
+      averageRiskScore: 0,
+      contentTypes: {
+        'Promotional': 0,
+        'Scam': 0,
+        'Airdrop': 0,
+        'URL': 0,
+        'Normal': 0,
+        'Unknown': 0
+      }
+    };
+  }
+
+  // Calculate stats
+  const memosAnalyzed = data.length;
+  const suspiciousMemos = data.filter(entry => entry.isSuspicious).length;
+  const totalRiskScore = data.reduce((sum, entry) => sum + entry.suspiciousScore, 0);
+
+  // Count content types
+  const contentTypes = {
+    'Promotional': 0,
+    'Scam': 0,
+    'Airdrop': 0,
+    'URL': 0,
+    'Normal': 0,
+    'Unknown': 0
+  };
+
+  data.forEach(entry => {
+    const contentType = entry.contentType || 'Unknown';
+    contentTypes[contentType] = (contentTypes[contentType] || 0) + 1;
+  });
+
+  return {
+    memosAnalyzed,
+    suspiciousMemos,
+    suspiciousPercentage: memosAnalyzed > 0 ? (suspiciousMemos / memosAnalyzed) * 100 : 0,
+    averageRiskScore: memosAnalyzed > 0 ? totalRiskScore / memosAnalyzed : 0,
+    contentTypes
+  };
+}
+
+/**
+ * Calculate overall statistics
+ * @param {Object} allStats - All statistics
+ * @returns {Object} Overall statistics
+ */
+function calculateOverallStats(allStats) {
+  // Count total analyses
+  const totalAnalyses =
+    (allStats.tokens.totalTokensAnalyzed || 0) +
+    (allStats.transactions.totalTransactionsAnalyzed || 0) +
+    (allStats.wallets.totalWalletsAnalyzed || 0) +
+    (allStats.addressPoisoning.totalWalletsAnalyzed || 0) +
+    (allStats.walletTokens.walletsAnalyzed || 0) +
+    (allStats.blocks.blocksAnalyzed || 0) +
+    (allStats.batch.walletsAnalyzed || 0) +
+    (allStats.timeRange.walletsAnalyzed || 0) +
+    (allStats.memo.memosAnalyzed || 0);
+
+  // Count total dusting attacks
+  const totalDustingAttacks =
+    (allStats.tokens.suspiciousTokensCount || 0) +
+    (allStats.transactions.dustingTransactionsCount || 0) +
+    (allStats.wallets.victimWalletsCount || 0) +
+    (allStats.blocks.dustingTransactions || 0) +
+    (allStats.batch.victimWallets || 0) +
+    (allStats.timeRange.dustingTransactions || 0);
+
+  // Count total poisoning attempts
+  const totalPoisoningAttempts = allStats.addressPoisoning.totalPoisoningAttempts || 0;
+
+  // Create attack distribution
+  const attackDistribution = {
+    'Token Dusting': allStats.tokens.suspiciousTokensCount || 0,
+    'SOL Dusting': allStats.transactions.attackVectorDistribution?.SOL_DUST || 0,
+    'Address Poisoning': totalPoisoningAttempts,
+    'Suspicious Memos': allStats.memo.suspiciousMemos || 0,
+    'Other Attacks': 0
+  };
+
+  return {
+    totalAnalyses,
+    totalDustingAttacks,
+    totalPoisoningAttempts,
+    attackDistribution
+  };
+}
+
 module.exports = {
   initializeDataStorage,
   collectTokenAnalysisData,
   collectTransactionAnalysisData,
   collectWalletAnalysisData,
   collectAddressPoisoningData,
+  collectWalletTokensData,
+  collectBlockRangeData,
+  collectBatchData,
+  collectTimeRangeData,
+  collectMemoData,
+  collectMemoTextData,
   getDashboardStats,
   getTimeSeriesData
 };

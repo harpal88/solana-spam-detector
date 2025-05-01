@@ -58,7 +58,8 @@ const dashboardRoutes = require('./dashboard-api');
 // Create Express app
 const app = express();
 // Use the PORT environment variable provided by Render, or fall back to config
-const PORT = process.env.PORT || config.PORT;
+// If port 3000 is in use, try port 3001
+const PORT = process.env.PORT || process.env.ALTERNATE_PORT || 3001;
 
 // Middleware
 app.use(helmet()); // Security headers

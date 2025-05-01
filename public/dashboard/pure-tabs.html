@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pure Tabs</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .tabs {
+      display: flex;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      border-bottom: 1px solid #ccc;
+    }
+    
+    .tab {
+      padding: 10px 15px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-bottom: none;
+      margin-bottom: -1px;
+      background-color: #f8f8f8;
+    }
+    
+    .tab.active {
+      background-color: white;
+      border-color: #ccc;
+      border-bottom-color: white;
+    }
+    
+    .tab-content {
+      border: 1px solid #ccc;
+      border-top: none;
+      padding: 15px;
+    }
+    
+    .tab-pane {
+      display: none;
+    }
+    
+    .tab-pane.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Pure Tabs (No Dependencies)</h1>
+    
+    <!-- First Tab Set -->
+    <ul class="tabs" id="firstTabs">
+      <li class="tab active" data-target="tab1">Tab 1</li>
+      <li class="tab" data-target="tab2">Tab 2</li>
+      <li class="tab" data-target="tab3">Tab 3</li>
+    </ul>
+    
+    <div class="tab-content" id="firstTabContent">
+      <div id="tab1" class="tab-pane active">
+        <h2>Tab 1 Content</h2>
+        <p>This is the content for Tab 1.</p>
+      </div>
+      <div id="tab2" class="tab-pane">
+        <h2>Tab 2 Content</h2>
+        <p>This is the content for Tab 2.</p>
+      </div>
+      <div id="tab3" class="tab-pane">
+        <h2>Tab 3 Content</h2>
+        <p>This is the content for Tab 3.</p>
+      </div>
+    </div>
+    
+    <hr style="margin: 30px 0;">
+    
+    <!-- Second Tab Set -->
+    <ul class="tabs" id="secondTabs">
+      <li class="tab active" data-target="secondTab1">Tab A</li>
+      <li class="tab" data-target="secondTab2">Tab B</li>
+      <li class="tab" data-target="secondTab3">Tab C</li>
+    </ul>
+    
+    <div class="tab-content" id="secondTabContent">
+      <div id="secondTab1" class="tab-pane active">
+        <h2>Tab A Content</h2>
+        <p>This is the content for Tab A.</p>
+      </div>
+      <div id="secondTab2" class="tab-pane">
+        <h2>Tab B Content</h2>
+        <p>This is the content for Tab B.</p>
+      </div>
+      <div id="secondTab3" class="tab-pane">
+        <h2>Tab C Content</h2>
+        <p>This is the content for Tab C.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Get all tab sets
+      const tabSets = document.querySelectorAll('.tabs');
+      
+      // Set up each tab set
+      tabSets.forEach(tabSet => {
+        const tabs = tabSet.querySelectorAll('.tab');
+        
+        // Add click event to each tab
+        tabs.forEach(tab => {
+          tab.addEventListener('click', function() {
+            // Remove active class from all tabs in this set
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            // Add active class to clicked tab
+            this.classList.add('active');
+            
+            // Get the target tab pane ID
+            const targetId = this.getAttribute('data-target');
+            
+            // Get the tab content container
+            const tabContentId = tabSet.id + 'Content';
+            const tabContent = document.getElementById(tabContentId);
+            
+            // Remove active class from all tab panes
+            tabContent.querySelectorAll('.tab-pane').forEach(pane => {
+              pane.classList.remove('active');
+            });
+            
+            // Add active class to target tab pane
+            document.getElementById(targetId).classList.add('active');
+          });
+        });
+      });
+    });
+  </script>
+</body>
+</html>
