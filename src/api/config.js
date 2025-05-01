@@ -1,0 +1,32 @@
+/**
+ * Configuration for the Solana Spam Detector API
+ *
+ * This file loads environment variables for use throughout the application.
+ * For local development, variables are loaded from .env file.
+ * For production (e.g., Render), variables are loaded from the environment.
+ */
+
+// Load environment variables from .env file in development
+try {
+  if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config();
+  }
+} catch (error) {
+  console.warn('dotenv module not found, skipping .env file loading');
+}
+
+// Export configuration variables
+module.exports = {
+  // Helius API key - required for Solana blockchain data access
+  // First try VITE_HELIUS_API_KEY (for Render compatibility), then fallback to default
+  HELIUS_API_KEY: process.env.VITE_HELIUS_API_KEY || '73da6c11-2e9e-4f12-88d2-2e345d6c4c46',
+
+  // Server port
+  PORT: process.env.PORT || 3000,
+
+  // Environment
+  NODE_ENV: process.env.NODE_ENV || 'development',
+
+  // Base URL for the API (used in Swagger docs)
+  BASE_URL: process.env.BASE_URL || 'http://localhost:3000'
+};

@@ -6,7 +6,31 @@
  */
 
 // Import configuration
-const config = require('./config/config');
+// Try different paths to find the config file
+let config;
+try {
+  // First try the local path
+  config = require('./config');
+} catch (error) {
+  try {
+    // Then try the config directory
+    config = require('./config/config');
+  } catch (error) {
+    try {
+      // Then try the root config
+      config = require('../../config');
+    } catch (error) {
+      // Create a default config if all else fails
+      console.warn('Could not load config file, using default values');
+      config = {
+        HELIUS_API_KEY: process.env.VITE_HELIUS_API_KEY || '73da6c11-2e9e-4f12-88d2-2e345d6c4c46',
+        PORT: process.env.PORT || 3000,
+        NODE_ENV: process.env.NODE_ENV || 'development',
+        BASE_URL: process.env.BASE_URL || 'http://localhost:3000'
+      };
+    }
+  }
+}
 const HELIUS_API_KEY = config.HELIUS_API_KEY;
 
 const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
