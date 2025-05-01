@@ -28,5 +28,6 @@ module.exports = {
   NODE_ENV: process.env.NODE_ENV || 'development',
 
   // Base URL for the API (used in Swagger docs)
-  BASE_URL: process.env.BASE_URL || 'http://localhost:3000'
+  // For Render, use the RENDER_EXTERNAL_URL environment variable
+  BASE_URL: process.env.RENDER_EXTERNAL_URL || process.env.BASE_URL || 'http://localhost:3000'
 };

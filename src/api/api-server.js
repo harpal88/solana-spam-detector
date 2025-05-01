@@ -57,7 +57,8 @@ const dashboardRoutes = require('./dashboard-api');
 
 // Create Express app
 const app = express();
-const PORT = config.PORT;
+// Use the PORT environment variable provided by Render, or fall back to config
+const PORT = process.env.PORT || config.PORT;
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -95,7 +96,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: config.BASE_URL,
+        url: process.env.RENDER_EXTERNAL_URL || config.BASE_URL,
         description: config.NODE_ENV === 'production' ? 'Production server' : 'Development server'
       }
     ],
@@ -1231,7 +1232,8 @@ app.use((err, req, res, next) => {
 
 // Start the server
 app.listen(PORT, () => {
+  const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
   console.log(`Solana Spam Detector API server running on port ${PORT}`);
-  console.log(`API documentation available at http://localhost:${PORT}/api-docs`);
-  console.log(`Dashboard available at http://localhost:${PORT}/dashboard`);
+  console.log(`API documentation available at ${baseUrl}/api-docs`);
+  console.log(`Dashboard available at ${baseUrl}/dashboard`);
 });
