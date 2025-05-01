@@ -62,12 +62,19 @@ cd solana-spam-detector
 npm install
 ```
 
-3. Create a configuration file:
+3. Set up your environment variables:
 ```bash
-cp config/config.example.js config/config.js
+cp .env.example .env
 ```
 
-4. Edit the configuration file with your Helius API key.
+4. Edit the `.env` file with your Helius API key:
+```
+VITE_HELIUS_API_KEY=your-helius-api-key-here
+```
+
+5. For deployment to Render, add the environment variable:
+   - Key: `VITE_HELIUS_API_KEY`
+   - Value: Your Helius API key
 
 ## Usage
 

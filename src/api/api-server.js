@@ -15,6 +15,9 @@ const swaggerJsDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const path = require('path');
 
+// Import configuration
+const config = require('./config');
+
 // Import analyzer modules
 const { detectDustingAttacks, analyzeWalletTokens, analyzeWalletTokensCommand } = require('../analyzers/wallet-analyzer-new');
 const { analyzeTransaction } = require('../analyzers/transaction-analyzer');
@@ -30,7 +33,7 @@ const dashboardRoutes = require('./dashboard-api');
 
 // Create Express app
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = config.PORT;
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -68,8 +71,8 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: `http://localhost:${PORT}`,
-        description: 'Development server'
+        url: config.BASE_URL,
+        description: config.NODE_ENV === 'production' ? 'Production server' : 'Development server'
       }
     ],
     security: [

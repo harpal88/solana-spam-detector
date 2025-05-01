@@ -1063,7 +1063,6 @@ async function analyzeWalletTokensCommand(walletAddress, numTransactions = 0) {
       }
 
       // Summary is already displayed above
-    }
 
     // Add recommendations section
     console.log('\n⚠️ Recommendations:');

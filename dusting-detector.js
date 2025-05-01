@@ -8,10 +8,8 @@
  * node dusting-detector.js <wallet-address> <num-transactions>
  */
 
-// Try to load config file, use placeholder if not found
-//let HELIUS_API_KEY = '';
-
-import { HELIUS_API_KEY } from './config';
+// Import configuration
+const { HELIUS_API_KEY } = require('./config');
 
 const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 const HELIUS_API_URL = `https://api.helius.xyz/v0`;
