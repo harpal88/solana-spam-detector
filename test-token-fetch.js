@@ -3,7 +3,7 @@
  */
 
 // Import configuration
-const { HELIUS_API_KEY } = require('./config');
+const { HELIUS_API_KEY } = require('./src/api/config/config');
 async function fetchTokenAccounts(walletAddress) {
   console.log(`Fetching token accounts for wallet: ${walletAddress}`);
 

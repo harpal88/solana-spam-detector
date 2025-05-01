@@ -6,7 +6,7 @@
  */
 
 // Import configuration
-const config = require('./config');
+const config = require('./config/config');
 const HELIUS_API_KEY = config.HELIUS_API_KEY;
 
 const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;

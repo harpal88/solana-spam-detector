@@ -16,7 +16,7 @@ const swaggerUi = require('swagger-ui-express');
 const path = require('path');
 
 // Import configuration
-const config = require('./config');
+const config = require('./config/config');
 
 // Import analyzer modules
 const { detectDustingAttacks, analyzeWalletTokens, analyzeWalletTokensCommand } = require('../analyzers/wallet-analyzer-new');
