@@ -9,7 +9,7 @@
  */
 
 // Try to load config file, use placeholder if not found
-let HELIUS_API_KEY = '';
+//let HELIUS_API_KEY = '';
 
 import { HELIUS_API_KEY } from './config';
 

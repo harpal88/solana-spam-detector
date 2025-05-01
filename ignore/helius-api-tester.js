@@ -6,7 +6,7 @@
  */
 
 // Try to load config file, use placeholder if not found
-let HELIUS_API_KEY = '';
+//let HELIUS_API_KEY = '';
 // try {
 //   const config = require('./config');
 //   HELIUS_API_KEY = config.HELIUS_API_KEY;
