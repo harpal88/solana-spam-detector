@@ -4,15 +4,15 @@
 
 // Try to load config file, use placeholder if not found
 let HELIUS_API_KEY = '';
-try {
-  const config = require('./config/config');
-  HELIUS_API_KEY = config.HELIUS_API_KEY;
-} catch (error) {
-  console.error('Config file not found or invalid. Please create a config.js file based on config.example.js');
-  console.error('Exiting...');
-  process.exit(1);
-}
-
+// try {
+//   const config = require('./config/config');
+//   HELIUS_API_KEY = config.HELIUS_API_KEY;
+// } catch (error) {
+//   console.error('Config file not found or invalid. Please create a config.js file based on config.example.js');
+//   console.error('Exiting...');
+//   process.exit(1);
+// }
+import { HELIUS_API_KEY } from './config';
 async function fetchTokenAccounts(walletAddress) {
   console.log(`Fetching token accounts for wallet: ${walletAddress}`);
   

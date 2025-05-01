@@ -6,15 +6,15 @@
  */
 
 // Try to load config file, use placeholder if not found
-let HELIUS_API_KEY = '73da6c11-2e9e-4f12-88d2-2e345d6c4c46';
-try {
-  const config = require('./config');
-  HELIUS_API_KEY = config.HELIUS_API_KEY;
-} catch (error) {
-  console.warn('Config file not found or invalid. Please create a config.js file based on config.example.js');
-  console.warn('Using placeholder API key - tests will fail until you provide a valid key\n');
-}
-
+let HELIUS_API_KEY = '';
+// try {
+//   const config = require('./config');
+//   HELIUS_API_KEY = config.HELIUS_API_KEY;
+// } catch (error) {
+//   console.warn('Config file not found or invalid. Please create a config.js file based on config.example.js');
+//   console.warn('Using placeholder API key - tests will fail until you provide a valid key\n');
+// }
+import { HELIUS_API_KEY } from './config';
 const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 const HELIUS_API_URL = `https://api.helius.xyz/v0`;
 

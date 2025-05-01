@@ -7,14 +7,14 @@
 
 // Try to load config file, use placeholder if not found
 let HELIUS_API_KEY = '<api-key>';
-try {
-  const config = require('./config');
-  HELIUS_API_KEY = config.HELIUS_API_KEY;
-} catch (error) {
-  console.warn('Config file not found or invalid. Please create a config.js file based on config.example.js');
-  console.warn('Using placeholder API key - tests will fail until you provide a valid key\n');
-}
-
+// try {
+//   const config = require('./config');
+//   HELIUS_API_KEY = config.HELIUS_API_KEY;
+// } catch (error) {
+//   console.warn('Config file not found or invalid. Please create a config.js file based on config.example.js');
+//   console.warn('Using placeholder API key - tests will fail until you provide a valid key\n');
+// }
+import { HELIUS_API_KEY } from './config';
 const DAS_API_URL = `https://api.helius.xyz/v0/tokens`;
 
 // Helper function to make DAS API requests
